@@ -3,7 +3,6 @@ WORKDIR /repo
 ENV ROLLUP_NO_BINARY=true
 RUN corepack enable
 
-# keep pnpm’s store path inside the image to avoid “Unexpected store location”
 RUN pnpm config set store-dir /pnpm-store
 
 COPY pnpm-workspace.yaml pnpm-lock.yaml ./

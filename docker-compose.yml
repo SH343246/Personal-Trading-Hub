@@ -47,9 +47,7 @@ services:
     ports: ["5173:5173"]
     depends_on: [api]
     volumes:
-      # mount source code where the Dockerfile expects it
       - ./frontend:/repo/frontend:delegated
-      # keep node_modules inside the container (not from the host)
       - /repo/frontend/node_modules
 
 
