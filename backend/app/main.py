@@ -6,9 +6,9 @@ from fastapi import Depends, FastAPI
 from sqlalchemy.orm import Session
 from starlette.middleware.sessions import SessionMiddleware
 from fastapi.middleware.cors import CORSMiddleware
-
+from app.routers.stocks.prices import router as prices_router
 from app.config import SessionLocal 
-from app.models import Base, User
+from backend.app.models1.models import Base, User
 from .routers.AuthenticationRoutes import router as auth_router
 from app.deps import get_db
 from app.routers import local_logging_in as local_auth
@@ -20,6 +20,7 @@ app = FastAPI()
 
 app.include_router(auth_router, prefix="/api", tags=["auth"])
 app.include_router(local_auth.router, prefix="/api/auth", tags=["auth"])
+app.include_router(prices_router)
 
 
 app.add_middleware(SessionMiddleware, secret_key=os.getenv("SESSION_SECRET", "dev-secret"))

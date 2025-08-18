@@ -6,7 +6,7 @@ from datetime import timedelta
 import os
 from pydantic import BaseModel, EmailStr
 from app.deps import get_db
-from app.models import User
+from backend.app.models1.models import User
 from .jwt_handler import create_access_token, create_refresh_token
 
 router = APIRouter()

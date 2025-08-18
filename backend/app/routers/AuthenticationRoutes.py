@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 from authlib.integrations.starlette_client import OAuth
 from authlib.integrations.base_client.errors import MismatchingStateError
 from jose import JWTError, jwt
-from app.models import User
+from backend.app.models1.models import User
 #from jwt_handler import create_access_token, create_refresh_token
 from .jwt_handler import create_access_token, create_refresh_token
 from app.deps import get_db
