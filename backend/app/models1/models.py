@@ -36,7 +36,7 @@ class Candle1m(Base):
     low = Column(Numeric(18, 6), nullable=False)
     close = Column(Numeric(18, 6), nullable=False)
     volume = Column(BigInteger, nullable=False, default=0)
-    ts = column_property(bucket_start)
+
     __table_args__ = (
         UniqueConstraint("symbol", "bucket_start", name="uq_c1m_symbol_bucket"),
         Index("ix_c1m_bucket_start", "bucket_start"),
@@ -53,10 +53,44 @@ class Candle5m(Base):
     low = Column(Numeric(18, 6), nullable=False)
     close = Column(Numeric(18, 6), nullable=False)
     volume = Column(BigInteger, nullable=False, default=0)
-    ts = column_property(bucket_start)
+
     __table_args__ = (
         UniqueConstraint("symbol", "bucket_start", name="uq_c5m_symbol_bucket"),
         Index("ix_c5m_bucket_start", "bucket_start"),
+    )
+
+class Candle1h(Base):
+    __tablename__ = "candles_1h"
+
+    id = Column(Integer, primary_key=True, index=True)
+    symbol = Column(String, index=True, nullable=False)
+    bucket_start = Column(TIMESTAMP(timezone=True), index=True, nullable=False)
+    open = Column(Numeric(18, 6), nullable=False)
+    high = Column(Numeric(18, 6), nullable=False)
+    low = Column(Numeric(18, 6), nullable=False)
+    close = Column(Numeric(18, 6), nullable=False)
+    volume = Column(BigInteger, nullable=False, default=0)
+
+    __table_args__ = (
+        UniqueConstraint("symbol", "bucket_start", name="uq_c1h_symbol_bucket"),
+        Index("ix_c1h_bucket_start", "bucket_start"),
+    )
+
+class Candle1d(Base):
+    __tablename__ = "candles_1d"
+
+    id = Column(Integer, primary_key=True, index=True)
+    symbol = Column(String, index=True, nullable=False)
+    bucket_start = Column(TIMESTAMP(timezone=True), index=True, nullable=False)
+    open = Column(Numeric(18, 6), nullable=False)
+    high = Column(Numeric(18, 6), nullable=False)
+    low = Column(Numeric(18, 6), nullable=False)
+    close = Column(Numeric(18, 6), nullable=False)
+    volume = Column(BigInteger, nullable=False, default=0)
+
+    __table_args__ = (
+        UniqueConstraint("symbol", "bucket_start", name="uq_c1d_symbol_bucket"),
+        Index("ix_c1d_bucket_start", "bucket_start"),
     )
 
 class Candle(Base):

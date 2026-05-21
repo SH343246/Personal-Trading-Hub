@@ -1,4 +1,4 @@
-// e.g., DashboardCard01.tsx (placeholder)
+//todo: use or remove
 import React from "react";
 import WidgetCard from "../mosaic/WidgetCard";
 export default function DashboardCard01() {

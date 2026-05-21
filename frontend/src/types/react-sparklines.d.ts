@@ -6,7 +6,7 @@ declare module "react-sparklines" {
     width?: number;
     height?: number;
     margin?: number;
-    children?: React.ReactNode; // <-- add this
+    children?: React.ReactNode; 
   }
   export class Sparklines extends React.Component<SparklinesProps> {}
 

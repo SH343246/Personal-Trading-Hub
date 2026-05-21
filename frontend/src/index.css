@@ -1,11 +1,12 @@
-/* ---------------------------------------
-   Tailwind (if you use it)
-----------------------------------------*/
+
 @import "tailwindcss";
 
-/* ---------------------------------------
-   GoStock Style Layout - EXACT REPLICA
-----------------------------------------*/
+/* Wire Tailwind's dark: utilities to Mantine's color-scheme attribute.
+   Mantine sets data-mantine-color-scheme="dark" on <html> when dark mode
+   is active, so this makes every dark: class respond to Mantine's toggle. */
+@variant dark (&:where([data-mantine-color-scheme="dark"], [data-mantine-color-scheme="dark"] *));
+
+
 :root {
   font-family: system-ui, -apple-system, sans-serif;
   line-height: 1.5;
@@ -19,7 +20,6 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Reset everything to eliminate white space */
 * {
   margin: 0;
   padding: 0;
@@ -39,7 +39,6 @@ html, body {
   background-color: #f8fafc;
 }
 
-/* GoStock Layout Container */
 .gostock-layout {
   display: flex;
   width: 100vw;
@@ -48,7 +47,6 @@ html, body {
   overflow: hidden;
 }
 
-/* Left Sidebar - exactly like GoStock */
 .gostock-sidebar-left {
   width: 280px;
   flex-shrink: 0;
@@ -62,7 +60,6 @@ html, body {
   height: 100%;
 }
 
-/* Main Content Area */
 .gostock-main {
   flex: 1;
   display: flex;
@@ -71,7 +68,6 @@ html, body {
   background-color: #f8fafc;
 }
 
-/* Top Header */
 .gostock-header {
   background-color: #ffffff;
   border-bottom: 1px solid #e5e7eb;
@@ -79,7 +75,6 @@ html, body {
   flex-shrink: 0;
 }
 
-/* Main Content */
 .gostock-content {
   flex: 1;
   padding: 24px;
@@ -87,7 +82,6 @@ html, body {
   background-color: #f8fafc;
 }
 
-/* Right Sidebar - Watchlist */
 .gostock-sidebar-right {
   width: 320px;
   flex-shrink: 0;
@@ -101,7 +95,6 @@ html, body {
   height: 100%;
 }
 
-/* Card Styles - like GoStock */
 .m-soft-card {
   background: #ffffff;
   border: 1px solid #e5e7eb;
@@ -111,7 +104,6 @@ html, body {
   margin-bottom: 20px;
 }
 
-/* Portfolio Grid */
 .portfolio-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
@@ -162,7 +154,6 @@ html, body {
   color: #ef4444;
 }
 
-/* Responsive - hide right sidebar on smaller screens */
 @media (max-width: 1024px) {
   .gostock-sidebar-right {
     display: none;
@@ -179,7 +170,6 @@ html, body {
   }
 }
 
-/* Utility classes */
 .tabular { 
   font-variant-numeric: tabular-nums; 
 }
@@ -188,35 +178,38 @@ html, body {
   text-align: right; 
 }
 
-/* Button styles */
-button {
-  border-radius: 8px;
-  border: 1px solid #d1d5db;
-  padding: 8px 16px;
-  font-size: 14px;
-  font-weight: 500;
-  font-family: inherit;
-  background-color: #ffffff;
-  color: #374151;
-  cursor: pointer;
-  transition: all 0.2s;
-}
+/* Put global element defaults in @layer base so Tailwind utility classes
+   (which live in @layer utilities) can always override them. Without this,
+   plain unlayered CSS beats Tailwind's layered utilities in the cascade. */
+@layer base {
+  button {
+    border-radius: 8px;
+    border: 1px solid #d1d5db;
+    padding: 8px 16px;
+    font-size: 14px;
+    font-weight: 500;
+    font-family: inherit;
+    background-color: #ffffff;
+    color: #374151;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
 
-button:hover {
-  background-color: #f9fafb;
-  border-color: #9ca3af;
-}
+  button:hover {
+    background-color: #f9fafb;
+    border-color: #9ca3af;
+  }
 
-/* Link styles */
-a {
-  color: #3b82f6;
-  text-decoration: none;
-  font-weight: 500;
-}
+  a {
+    color: #3b82f6;
+    text-decoration: none;
+    font-weight: 500;
+  }
 
-a:hover {
-  color: #2563eb;
-  text-decoration: underline;
+  a:hover {
+    color: #2563eb;
+    text-decoration: underline;
+  }
 }
 
 html, body, #root {
@@ -234,7 +227,6 @@ body {
 }
 
 
-/* Sidebar expanded state */
 @media (min-width: 1024px) {
   .sidebar-expanded .lg\:sidebar-expanded\:w-64 {
     width: 16rem;
@@ -249,7 +241,6 @@ body {
   }
 }
 
-/* Backdrop for mobile */
 .backdrop {
   position: fixed;
   inset: 0;
@@ -257,12 +248,10 @@ body {
   transition: opacity 200ms ease-out;
 }
 
-/* Custom easing */
 .ease-out-quint {
   transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-/* Hide scrollbar */
 .no-scrollbar::-webkit-scrollbar {
   display: none;
 }

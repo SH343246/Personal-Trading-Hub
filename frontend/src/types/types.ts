@@ -1,7 +1,6 @@
 export type Tick = {
   symbol: string;
   price: number;
-  // can be ISO string or a numeric timestamp (sec/ms) depending on source
   event_ts: string | number;
   volume?: number | null;
   source?: string;

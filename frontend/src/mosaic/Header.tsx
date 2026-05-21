@@ -1,4 +1,3 @@
-// src/components/shell/Header.tsx
 import React from "react";
 
 type HeaderProps = {
@@ -13,7 +12,7 @@ export default function Header({ sidebarOpen, setSidebarOpen }: HeaderProps) {
 
       <div className="px-4 sm:px-6 lg:px-8 h-full flex items-center justify-between">
         <div className="flex items-center justify-between h-14">
-          {/* Left: hamburger */}
+          {/* Left side - sidebar */}
           <button
             className="text-base-content/70 hover:text-base-content lg:hidden"
             aria-controls="sidebar"
@@ -31,7 +30,7 @@ export default function Header({ sidebarOpen, setSidebarOpen }: HeaderProps) {
             </svg>
           </button>
 
-          {/* Right: placeholders (search/theme/user later) */}
+          {/* Right for news/watchlist */}
           <div className="flex items-center gap-2">
             <input
               placeholder="Search…"

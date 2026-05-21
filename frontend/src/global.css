@@ -1,7 +1,6 @@
 @import "tailwindcss";
 
 
-/* Font (Mosaic uses Inter) */
 @font-face {
   font-family: 'Inter var';
   src: local('Inter var'), url('/fonts/Inter-VariableFont.woff2') format('woff2');
@@ -13,24 +12,21 @@
 
 html, body, #root {
   height: 100%;
-  background: #f8fafc; /* slate-50 */
+  background: #f8fafc; 
 }
 
 body {
   font-family: 'Inter var', ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, 'Helvetica Neue', Arial, 'Apple Color Emoji', 'Segoe UI Emoji';
-  color: #0f172a; /* slate-900 */
+  color: #0f172a; 
 }
 
-/* overlay/backdrop smoothness */
 .backdrop {
   @apply fixed inset-0 bg-slate-900/30 transition-opacity duration-200;
 }
 
-/* hide scrollbars in the sidebar (optional) */
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
-/* expand/collapse helper used by Mosaic */
 .sidebar-expanded .lg\:sidebar-expanded\:opacity-100 { opacity: 1 !important; }
 .sidebar-expanded .lg\:sidebar-expanded\:block { display: block !important; }
 .sidebar-expanded .lg\:sidebar-expanded\:hidden { display: none !important; }

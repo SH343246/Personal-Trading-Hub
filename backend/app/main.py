@@ -17,43 +17,34 @@ from app.routers import local_logging_in as local_auth
 from app.routers.stocks.ticks import router as ticks_router
 #from app.routers.stocks.market import router as market_router
 from app.routers.stocks.realtimeupdates import router as realtime_router
-from backend.app.routers.stocks.candles import router as candles_router
-
-
+from app.routers.stocks.candles import router as candles_router
+from app.routers.stocks.symbols import router as symbols_router
+from app.routers.stocks.news import router as news_router
+from app.routers.stocks.stats import router as stats_router
 
 
 app = FastAPI()
 
-
-
+# Middleware must be registered once — SessionMiddleware first, then CORS
+app.add_middleware(SessionMiddleware, secret_key=os.getenv("SESSION_SECRET", "dev-secret"))
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:5173"],
     allow_credentials=True,
-    allow_methods=["GET","POST","PATCH","PUT","DELETE","OPTIONS"],
+    allow_methods=["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )
-
 
 app.include_router(auth_router, prefix="/api", tags=["auth"])
 app.include_router(local_auth.router, prefix="/api/auth", tags=["auth"])
 app.include_router(prices_router)
 app.include_router(ticks_router)
 app.include_router(realtime_router)
-#app.include_router(market_router)
 app.include_router(candles_router, prefix="/api", tags=["candles"])
+app.include_router(symbols_router, prefix="/api", tags=["symbols"])
+app.include_router(news_router,    prefix="/api", tags=["news"])
+app.include_router(stats_router,   prefix="/api", tags=["stats"])
 
-
-app.add_middleware(SessionMiddleware, secret_key=os.getenv("SESSION_SECRET", "dev-secret"))
-
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
-    allow_credentials=True,
-    allow_methods=["GET","POST","PATCH","PUT","DELETE","OPTIONS"],
-    allow_headers=["*"],
-)
 
 @app.get("/")
 def read_root():
@@ -62,13 +53,6 @@ def read_root():
 @app.on_event("startup")
 def on_startup():
     Base.metadata.create_all(bind=SessionLocal().bind)
-
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
 
 @app.get("/health")
 def health(db: Session = Depends(get_db)):

@@ -1,4 +1,3 @@
-// src/pages/News.tsx
 export default function News() {
   return (
     <main className="p-6 max-w-5xl mx-auto space-y-6">

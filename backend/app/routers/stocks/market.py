@@ -6,13 +6,22 @@ PROVIDER = os.getenv("DATA_PROVIDER", "yahoo")
 
 def get_price_yahoo(symbol: str):
     ticker = yfinance.Ticker(symbol)
-    tickerInfo = ticker.fast_info
-    ts = datetime.datetime.fromtimestamp(tickerInfo.get("last_price_time", datetime.datetime.now().timestamp()), tz=pytz.UTC)
-    return { 
+    fi = ticker.fast_info
+
+    price = fi.last_price
+    if price is None:
+        raise ValueError(f"yfinance returned no last_price for {symbol}")
+
+    # fast_info has no price timestamp — use current UTC time
+    ts = datetime.datetime.now(tz=pytz.UTC)
+
+    return {
         "symbol": symbol,
         "ts": ts.isoformat(),
-        "price": float(tickerInfo["last_price"]), 
-        "currency": tickerInfo.get("currency","USD")}
+        "price": float(price),
+        "volume": fi.last_volume,
+        "currency": fi.currency or "USD",
+    }
     
 
 def get_price(symbol: str):

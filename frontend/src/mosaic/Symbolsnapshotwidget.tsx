@@ -1,17 +1,14 @@
 import React from "react";
 import { Card, Group, Text, Badge, Stack } from "@mantine/core";
-import { useTicker } from "../hooks/useTicker";
-import { useCandles, type timeFrame } from "../hooks/useCandles";
-import type { Tick } from "../types/types";
+import type { Candle, Tick } from "../types/types";
 
 type Props = {
   symbol: string;
-  timeframe: timeFrame;
+  candles: Candle[];
+  tick: Tick | null;
 };
 
-export default function SymbolSnapshot({ symbol, timeframe }: Props) {
-  const tick: Tick | null = useTicker(symbol);
-  const { candles } = useCandles(symbol, timeframe, 300, tick ?? undefined);
+export default function SymbolSnapshot({ symbol: _symbol, candles, tick }: Props) {
 
 
   let lastPrice: number | undefined = undefined;
@@ -105,7 +102,6 @@ const candleCount: number = candles.length;
   <Text fw={700}>{fmt(openPrice)}</Text>
 </Group>
 
-{/* Number of candles (new) */}
 <Group justify="space-between">
   <Group gap="xs">
     <Badge color="indigo">Candles</Badge>
