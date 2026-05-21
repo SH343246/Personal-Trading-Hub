@@ -1,4 +1,3 @@
-// src/api/widgets.ts
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type { WidgetInstance } from '../types/widgets'
 

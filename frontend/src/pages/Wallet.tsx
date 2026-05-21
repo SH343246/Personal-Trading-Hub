@@ -1,4 +1,3 @@
-// src/pages/Wallet.tsx
 export default function Wallet() {
   return (
     <main className="p-6 max-w-5xl mx-auto space-y-6">

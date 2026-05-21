@@ -1,4 +1,3 @@
-// tailwind.config.cjs
 const plugin = require('tailwindcss/plugin')
 
 module.exports = {
@@ -6,7 +5,6 @@ module.exports = {
   darkMode: 'class',
   theme: {
     extend: {
-      // Mosaic-ish tokens
       colors: {
         slate: {
           25: '#fcfcfd',
@@ -21,7 +19,7 @@ module.exports = {
           800: '#1e293b',
           900: '#0f172a',
         },
-        violet: {
+        violet: { //remove??
           400: '#8b5cf6',
           500: '#7c3aed',
         },
@@ -40,15 +38,12 @@ module.exports = {
   },
   plugins: [
     require('@tailwindcss/forms'),
-    // <- your custom variant belongs INSIDE plugins
     plugin(({ addVariant }) => {
       addVariant('sidebar-expanded', '.sidebar-expanded &')
     }),
-    // keep DaisyUI last (optional)
     require('daisyui'),
   ],
 
-  // DaisyUI (optional – if you keep it, let it style components, not the shell)
   daisyui: {
     themes: [
       {
