@@ -1,0 +1,129 @@
+import os
+import math
+import json
+from decimal import Decimal
+from datetime import datetime, timezone
+
+import redis
+import yfinance
+from fastapi import APIRouter, Query, Depends
+from sqlalchemy.orm import Session
+
+from app.deps import get_db
+from app.models1.models import Candle1m, Candle5m
+from app.db.repository import upsert_candle_ohlcv
+
+router = APIRouter()
+
+REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+_redis = redis.Redis.from_url(REDIS_URL, decode_responses=True)
+
+WATCHED_KEY = "watched_symbols"   # Redis SET of user-added symbols
+
+
+def _to_utc(dt: datetime) -> datetime:
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(timezone.utc)
+
+
+@router.get("/symbols/verify")
+def verify_symbol(symbol: str = Query(...)):
+    """
+    Check whether a ticker symbol is valid by asking yfinance for its
+    latest price. Returns valid=True plus the current price if found,
+    valid=False otherwise. Used by the frontend watchlist add flow.
+    """
+    sym = symbol.strip().upper()
+
+    if not sym or len(sym) > 10:
+        return {"valid": False, "symbol": sym, "error": "Invalid symbol format"}
+
+    try:
+        fi = yfinance.Ticker(sym).fast_info
+        price = fi.last_price
+
+        if price is None:
+            return {"valid": False, "symbol": sym, "error": "Symbol not found"}
+
+        return {"valid": True, "symbol": sym, "price": round(float(price), 2)}
+
+    except Exception as e:
+        return {"valid": False, "symbol": sym, "error": str(e)}
+
+
+@router.post("/symbols/seed")
+def seed_symbol(symbol: str = Query(...), db: Session = Depends(get_db)):
+    """
+    Called when the user adds a new symbol to their watchlist.
+    1. Fetches today's 1m and 5m bars from yfinance and upserts them to DB.
+    2. Publishes a latest-price tick to Redis so WebSocket subscribers see it immediately.
+    3. Adds the symbol to the Redis 'watched_symbols' set so the Celery worker
+       keeps it updated on every future fetch cycle.
+    """
+    sym = symbol.strip().upper()
+
+    try:
+        ticker = yfinance.Ticker(sym)
+
+        # --- 1-minute bars ---
+        df_1m = ticker.history(period="1d", interval="1m")
+        bars_1m = 0
+        if not df_1m.empty:
+            for ts_idx, row in df_1m.iterrows():
+                bucket = _to_utc(ts_idx.to_pydatetime().replace(second=0, microsecond=0))
+                vol = 0 if math.isnan(row["Volume"]) else int(row["Volume"])
+                upsert_candle_ohlcv(
+                    db, Candle1m, sym, bucket,
+                    Decimal(str(row["Open"])),
+                    Decimal(str(row["High"])),
+                    Decimal(str(row["Low"])),
+                    Decimal(str(row["Close"])),
+                    vol,
+                )
+            bars_1m = len(df_1m)
+
+        # --- 5-minute bars ---
+        df_5m = ticker.history(period="1d", interval="5m")
+        bars_5m = 0
+        if not df_5m.empty:
+            for ts_idx, row in df_5m.iterrows():
+                bucket = _to_utc(ts_idx.to_pydatetime().replace(second=0, microsecond=0))
+                vol = 0 if math.isnan(row["Volume"]) else int(row["Volume"])
+                upsert_candle_ohlcv(
+                    db, Candle5m, sym, bucket,
+                    Decimal(str(row["Open"])),
+                    Decimal(str(row["High"])),
+                    Decimal(str(row["Low"])),
+                    Decimal(str(row["Close"])),
+                    vol,
+                )
+            bars_5m = len(df_5m)
+
+        # --- Publish latest tick ---
+        if not df_1m.empty:
+            latest = df_1m.iloc[-1]
+            latest_ts = _to_utc(df_1m.index[-1].to_pydatetime())
+            ts_ms = int(latest_ts.timestamp() * 1000)
+            payload = {
+                "symbol": sym,
+                "price":  float(latest["Close"]),
+                "volume": 0 if math.isnan(latest["Volume"]) else int(latest["Volume"]),
+                "event_ts": ts_ms,
+                "newTickTimestamp": ts_ms,
+            }
+            _redis.set(f"tick:{sym}", json.dumps(payload))
+            _redis.publish(f"ticks:{sym}", json.dumps(payload))
+
+        # --- Register for ongoing Celery updates ---
+        _redis.sadd(WATCHED_KEY, sym)
+
+        # Kick off a historical backfill so 1H and 1D charts are populated
+        # immediately rather than waiting for the nightly scheduled run.
+        from app.worker.tasks import fetch_historical
+        fetch_historical.delay()
+
+        return {"status": "ok", "symbol": sym, "bars_1m": bars_1m, "bars_5m": bars_5m}
+
+    except Exception as e:
+        return {"status": "error", "symbol": sym, "error": str(e)}

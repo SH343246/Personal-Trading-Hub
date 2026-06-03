@@ -1,68 +1,261 @@
+
+@import "tailwindcss";
+
+/* Wire Tailwind's dark: utilities to Mantine's color-scheme attribute.
+   Mantine sets data-mantine-color-scheme="dark" on <html> when dark mode
+   is active, so this makes every dark: class respond to Mantine's toggle. */
+@variant dark (&:where([data-mantine-color-scheme="dark"], [data-mantine-color-scheme="dark"] *));
+
+
 :root {
-  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+  font-family: system-ui, -apple-system, sans-serif;
   line-height: 1.5;
   font-weight: 400;
-
-  color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
-
+  color: #1f2937;
+  background-color: #f8fafc;
+  
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-a {
-  font-weight: 500;
-  color: #646cff;
-  text-decoration: inherit;
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
 }
-a:hover {
-  color: #535bf2;
+
+html, body {
+  width: 100%;
+  height: 100%;
+  background-color: #f8fafc;
+  overflow-x: hidden;
+}
+
+#root {
+  width: 100%;
+  height: 100vh;
+  background-color: #f8fafc;
+}
+
+.gostock-layout {
+  display: flex;
+  width: 100vw;
+  height: 100vh;
+  background-color: #f8fafc;
+  overflow: hidden;
+}
+
+.gostock-sidebar-left {
+  width: 280px;
+  flex-shrink: 0;
+  background-color: #ffffff;
+  border-right: 1px solid #e5e7eb;
+  overflow-y: auto;
+}
+
+.gostock-sidebar-content {
+  padding: 24px 16px;
+  height: 100%;
+}
+
+.gostock-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  background-color: #f8fafc;
+}
+
+.gostock-header {
+  background-color: #ffffff;
+  border-bottom: 1px solid #e5e7eb;
+  padding: 16px 24px;
+  flex-shrink: 0;
+}
+
+.gostock-content {
+  flex: 1;
+  padding: 24px;
+  overflow-y: auto;
+  background-color: #f8fafc;
+}
+
+.gostock-sidebar-right {
+  width: 320px;
+  flex-shrink: 0;
+  background-color: #ffffff;
+  border-left: 1px solid #e5e7eb;
+  overflow-y: auto;
+}
+
+.gostock-watchlist {
+  padding: 24px 16px;
+  height: 100%;
+}
+
+.m-soft-card {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  margin-bottom: 20px;
+}
+
+.portfolio-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 20px;
+  margin-bottom: 30px;
+}
+
+.portfolio-card {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  position: relative;
+  overflow: hidden;
+}
+
+.portfolio-card h3 {
+  font-size: 14px;
+  font-weight: 600;
+  color: #6b7280;
+  margin-bottom: 8px;
+}
+
+.portfolio-card .symbol {
+  font-size: 12px;
+  color: #9ca3af;
+  margin-bottom: 4px;
+}
+
+.portfolio-card .price {
+  font-size: 20px;
+  font-weight: 700;
+  color: #111827;
+  margin-bottom: 4px;
+}
+
+.portfolio-card .change {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.portfolio-card .change.positive {
+  color: #10b981;
+}
+
+.portfolio-card .change.negative {
+  color: #ef4444;
+}
+
+@media (max-width: 1024px) {
+  .gostock-sidebar-right {
+    display: none;
+  }
+}
+
+@media (max-width: 768px) {
+  .gostock-sidebar-left {
+    width: 240px;
+  }
+  
+  .gostock-content {
+    padding: 16px;
+  }
+}
+
+.tabular { 
+  font-variant-numeric: tabular-nums; 
+}
+
+.right { 
+  text-align: right; 
+}
+
+/* Put global element defaults in @layer base so Tailwind utility classes
+   (which live in @layer utilities) can always override them. Without this,
+   plain unlayered CSS beats Tailwind's layered utilities in the cascade. */
+@layer base {
+  button {
+    border-radius: 8px;
+    border: 1px solid #d1d5db;
+    padding: 8px 16px;
+    font-size: 14px;
+    font-weight: 500;
+    font-family: inherit;
+    background-color: #ffffff;
+    color: #374151;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  button:hover {
+    background-color: #f9fafb;
+    border-color: #9ca3af;
+  }
+
+  a {
+    color: #3b82f6;
+    text-decoration: none;
+    font-weight: 500;
+  }
+
+  a:hover {
+    color: #2563eb;
+    text-decoration: underline;
+  }
+}
+
+html, body, #root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
 }
 
 body {
-  margin: 0;
-  display: flex;
-  place-items: center;
-  min-width: 320px;
-  min-height: 100vh;
-}
-
-h1 {
-  font-size: 3.2em;
-  line-height: 1.1;
-}
-
-button {
-  border-radius: 8px;
-  border: 1px solid transparent;
-  padding: 0.6em 1.2em;
-  font-size: 1em;
-  font-weight: 500;
   font-family: inherit;
-  background-color: #1a1a1a;
-  cursor: pointer;
-  transition: border-color 0.25s;
-}
-button:hover {
-  border-color: #646cff;
-}
-button:focus,
-button:focus-visible {
-  outline: 4px auto -webkit-focus-ring-color;
 }
 
-@media (prefers-color-scheme: light) {
-  :root {
-    color: #213547;
-    background-color: #ffffff;
+.debug * {
+  outline: 1px solid rgba(0, 0, 255, 0.08);
+}
+
+
+@media (min-width: 1024px) {
+  .sidebar-expanded .lg\:sidebar-expanded\:w-64 {
+    width: 16rem;
   }
-  a:hover {
-    color: #747bff;
+  
+  .sidebar-expanded .lg\:sidebar-expanded\:opacity-100 {
+    opacity: 1;
   }
-  button {
-    background-color: #f9f9f9;
+  
+  .sidebar-expanded .lg\:sidebar-expanded\:pl-64 {
+    padding-left: 16rem;
   }
+}
+
+.backdrop {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  transition: opacity 200ms ease-out;
+}
+
+.ease-out-quint {
+  transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
