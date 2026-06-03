@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Numeric, BigInteger, TIMESTAMP, UniqueConstraint, Index, Boolean, Float
+from sqlalchemy import Column, Integer, String, Numeric, BigInteger, TIMESTAMP, UniqueConstraint, Index, Boolean, Float, Text
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 from app.config import Base
 from sqlalchemy.orm import column_property  
@@ -92,6 +92,31 @@ class Candle1d(Base):
         UniqueConstraint("symbol", "bucket_start", name="uq_c1d_symbol_bucket"),
         Index("ix_c1d_bucket_start", "bucket_start"),
     )
+
+class PaperTrade(Base):
+    """
+    Every paper order ever placed — the single source of truth for the
+    paper trading portfolio. Positions and P&L are computed from this table,
+    never stored separately.
+
+    Columns:
+      symbol     — ticker e.g. "AAPL"
+      side       — "buy" or "sell"
+      qty        — number of shares (can be fractional)
+      price      — execution price (the live price at the moment of the order)
+      executed_at — UTC timestamp of the order
+      note       — optional free-text label (e.g. "following backtest signal")
+    """
+    __tablename__ = "paper_trades"
+
+    id          = Column(Integer, primary_key=True, index=True)
+    symbol      = Column(String(16), index=True, nullable=False)
+    side        = Column(String(4), nullable=False)   # "buy" | "sell"
+    qty         = Column(Numeric(18, 6), nullable=False)
+    price       = Column(Numeric(18, 6), nullable=False)
+    executed_at = Column(TIMESTAMP(timezone=True), index=True, nullable=False)
+    note        = Column(Text, nullable=True)
+
 
 class Candle(Base):
     __tablename__ = "candles"

@@ -21,6 +21,8 @@ from app.routers.stocks.candles import router as candles_router
 from app.routers.stocks.symbols import router as symbols_router
 from app.routers.stocks.news import router as news_router
 from app.routers.stocks.stats import router as stats_router
+from app.routers.stocks.backtest import router as backtest_router
+from app.routers.stocks.paper import router as paper_router
 
 
 app = FastAPI()
@@ -42,8 +44,10 @@ app.include_router(ticks_router)
 app.include_router(realtime_router)
 app.include_router(candles_router, prefix="/api", tags=["candles"])
 app.include_router(symbols_router, prefix="/api", tags=["symbols"])
-app.include_router(news_router,    prefix="/api", tags=["news"])
-app.include_router(stats_router,   prefix="/api", tags=["stats"])
+app.include_router(news_router,     prefix="/api", tags=["news"])
+app.include_router(stats_router,    prefix="/api", tags=["stats"])
+app.include_router(backtest_router, prefix="/api", tags=["backtest"])
+app.include_router(paper_router,    prefix="/api", tags=["paper"])
 
 
 @app.get("/")

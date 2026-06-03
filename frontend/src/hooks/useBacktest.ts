@@ -1,53 +1,60 @@
-import { useEffect, useRef, useState } from "react";
-import type { Tick } from "../types/types";
-const HEARTBEAT_INTERVAL_MS = 5000;
+/**
+ * useBacktest
+ * -----------
+ * Manages the state for a single backtest run.
+ *
+ * Returns:
+ *   result  — the BacktestResult once the request completes, null before that
+ *   loading — true while the request is in flight
+ *   error   — error message string if something went wrong, null otherwise
+ *   run     — call this with a BacktestRequest to kick off the backtest
+ *   reset   — clears result/error back to null (for running a fresh backtest)
+ */
 
-export function useTicker(symbol: string) {
-  const [latestTick, setLatestTick] = useState<Tick | null>(null);
-  const socketRef = useRef<WebSocket | null>(null);
-  useEffect(() => {
-    if (!symbol) return;
+import { useState } from "react";
+import type { BacktestRequest, BacktestResult } from "../types/backtest";
 
-    const url = `ws://localhost:8000/ws/ticks/${symbol.toUpperCase()}`;
-    let socket: WebSocket | null = new WebSocket(url);
-    socketRef.current = socket;
-    socket.onmessage = (event) => { // Get messages
-      try {
-        const parsed = JSON.parse(event.data); 
-        setLatestTick(parsed);
-      } catch (err) {
-        console.error("error:", err);
+const API_BASE = "http://localhost:8001/api";
+
+export function useBacktest() {
+  const [result,  setResult]  = useState<BacktestResult | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error,   setError]   = useState<string | null>(null);
+
+  async function run(request: BacktestRequest) {
+    // Reset any previous result/error before starting
+    setResult(null);
+    setError(null);
+    setLoading(true);
+
+    try {
+      const response = await fetch(`${API_BASE}/backtest`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(request),
+      });
+
+      if (!response.ok) {
+        // The backend returns { "detail": "..." } for errors
+        const errorBody = await response.json().catch(() => ({}));
+        throw new Error(errorBody.detail ?? `Request failed (${response.status})`);
       }
-    };
 
-    const heartbeatId = setInterval(() => {
-      if (!socket) return;
+      const data: BacktestResult = await response.json();
+      setResult(data);
 
-      if (socket?.readyState === WebSocket.OPEN) { // 1, open
-        socket.send("ping");
-      }
-    socket.onclose = () => {
-    try { socket = new WebSocket(url) } catch {console.error("WebSocket reconnect failed");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unknown error");
+    } finally {
+      // Always turn off loading when done, whether it succeeded or failed
+      setLoading(false);
     }
-    socketRef.current = socket
-    socket!.onmessage = (event) => {
-  try { setLatestTick(JSON.parse(event.data)) } catch (err) { console.error(err) }
-}
+  }
 
-    }
+  function reset() {
+    setResult(null);
+    setError(null);
+  }
 
-    }, HEARTBEAT_INTERVAL_MS);
-
-    return () => {
-      clearInterval(heartbeatId);// stop timer
-     const s = socketRef.current
-    if (s && s.readyState === WebSocket.OPEN) {
-      s.close()
-}
-
-      socketRef.current = null;
-    };
-  }, [symbol]);
-
-  return latestTick;
+  return { result, loading, error, run, reset };
 }

@@ -9,6 +9,7 @@ import StockFund from './pages/StockFund'
 import Settings from './pages/Settings'
 import Wallet from './pages/Wallet'
 import Home from './pages/Home'
+import BacktestPage from './pages/BacktestPage'
 
 export default function App() {
   return (
@@ -21,6 +22,7 @@ export default function App() {
         <Route path="/settings" element={<Settings />} />
         <Route path="/wallet" element={<Wallet />} />
         <Route path="/home" element={<Home />} />
+        <Route path="/backtest" element={<BacktestPage />} />
         <Route index element={<Navigate to="/dashboard" replace />} />
       </Route>
       <Route path="*" element={<Navigate to="/dashboard" replace />} />

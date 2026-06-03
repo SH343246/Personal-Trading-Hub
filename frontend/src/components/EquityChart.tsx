@@ -1,96 +1,74 @@
-import { Card, Group, Text, Badge } from "@mantine/core";
-import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, Tooltip } from "recharts";
+/**
+ * EquityChart
+ * -----------
+ * Renders the portfolio equity curve from a backtest result.
+ * X axis = time, Y axis = portfolio value in dollars.
+ */
 
-type Point = { x: string; y: number; };
+import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip } from "recharts";
+import type { EquityPoint } from "../types/backtest";
 
 type Props = {
-  title: string;
-  subtitle?: string;
-  priceLabel?: string;
-  changePercent?: number;
-  data: Point[];
+  data: EquityPoint[];
+  initialCash: number;
 };
 
-function toPercent(data: { x: string; y: number }[]) {
-  if (!data.length) return [];
-  const base = data[0].y || 1;
-  return data.map(d => ({ x: d.x, pct: ((d.y / base) - 1) * 100 }));
-}
+export function EquityChart({ data, initialCash }: Props) {
+  // Convert the raw equity curve into something Recharts understands.
+  // We also flag each point as "up" or "down" vs starting cash so we can
+  // colour the line green/red — but a single AreaChart can only have one
+  // colour, so we just use green for profit and red for loss overall.
+  const chartData = data.map((point) => ({
+    time: new Date(point.time).toLocaleDateString([], { month: "short", day: "numeric", year: "2-digit" }),
+    equity: parseFloat(point.equity.toFixed(2)),
+  }));
 
-/* function yDomain(data: Array<{ y: number }>): [number, number] | ["auto", "auto"] {
-  if (!data.length) return ["auto", "auto"];
-  const ys = data.map(d => d.y);
-  const min = Math.min(...ys);
-  const max = Math.max(...ys);
-  if (min === max) return [min - 0.25, max + 0.25];
-  const pad = (max - min) * 0.05;
-  return [min - pad, max + pad];
-} */
-// todo: fix
-function priceDomain(data: Array<{ y: number }>): [number, number] | ["auto","auto"] {
-  if (!data?.length) return ["auto","auto"];
-
-  const ys = data.map(d => d.y);
-  const min = Math.min(...ys);
-  const max = Math.max(...ys);
-  const span = max - min;
-  const last = ys[ys.length - 1];
-
-  const minPctBand = 0.003;         
-  const padPct = 0.10;               
-  const tiny = span < last * minPctBand;
-
-  if (tiny) {
-    const pad = last * minPctBand;    
-    return [last - pad, last + pad];
-  } else {
-    const pad = span * padPct;        
-    return [min - pad, max + pad];
-  }
-}
-
-
-export default function ChartCard(props: Props) {
-  const pctData = toPercent(props.data);
-//const pctDomain = yDomain(pctData.map(d => ({ y: d.pct })));
-const domain = priceDomain(props.data);
+  const finalEquity  = data.length > 0 ? data[data.length - 1].equity : initialCash;
+  const isProfit     = finalEquity >= initialCash;
+  const strokeColor  = isProfit ? "#10b981" : "#ef4444";   // teal or red
+  const gradientId   = "equityGradient";
 
   return (
-    
-    <Card withBorder radius="lg" padding="md" className="m-soft-card">
-      <Group justify="space-between" mb="sm">
-        <div>
-          <Text fw={600}>{props.title}</Text>
-          {props.subtitle ? <Text size="xs" c="dimmed">{props.subtitle}</Text> : null}
-        </div>
-        <Group gap="xs">
-          {props.priceLabel ? <Text fw={700}>{props.priceLabel}</Text> : null}
-          {typeof props.changePercent === "number" ? (
-            <Badge variant="light" color={props.changePercent >= 0 ? "green" : "red"}>
-              {props.changePercent >= 0 ? "+" : ""}
-              {props.changePercent.toFixed(2)}%
-              
-            </Badge>
-          ) : null}
-        </Group>
-      </Group>
+    <div style={{ width: "100%", height: 260 }}>
+      <ResponsiveContainer>
+        <AreaChart data={chartData} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
+          <defs>
+            <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="5%"  stopColor={strokeColor} stopOpacity={0.25} />
+              <stop offset="95%" stopColor={strokeColor} stopOpacity={0}    />
+            </linearGradient>
+          </defs>
 
-      <div style={{ width: "100%", height: 260 }}>
-<ResponsiveContainer>
-  <LineChart data={pctData} margin={{ top: 10, right: 10, bottom: 0, left: 0 }}>
-    <XAxis dataKey="x" />
-<YAxis
-  domain={domain}
-  allowDataOverflow
-  tickCount={5}
-  tickFormatter={(v) => v.toFixed(2)}
-/>
-    <Tooltip formatter={(v) => `${Number(v).toFixed(2)}%`} />
-    <Line type="monotone" dataKey="pct" dot={false} strokeWidth={2} />
-  </LineChart>
-</ResponsiveContainer>
+          {/* Only show a few x-axis labels so they don't overlap */}
+          <XAxis
+            dataKey="time"
+            tickLine={false}
+            tick={{ fontSize: 11 }}
+            interval="preserveStartEnd"
+          />
 
-      </div>
-    </Card>
+          <YAxis
+            tickLine={false}
+            tick={{ fontSize: 11 }}
+            tickFormatter={(v) => `$${v.toLocaleString()}`}
+            width={75}
+          />
+
+          <Tooltip
+            formatter={(value: number) => [`$${value.toLocaleString()}`, "Portfolio"]}
+            labelStyle={{ fontSize: 12 }}
+          />
+
+          <Area
+            type="monotone"
+            dataKey="equity"
+            stroke={strokeColor}
+            fill={`url(#${gradientId})`}
+            strokeWidth={2}
+            dot={false}
+          />
+        </AreaChart>
+      </ResponsiveContainer>
+    </div>
   );
 }

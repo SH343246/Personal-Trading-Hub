@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { NavLink } from "react-router-dom";
 import { useMantineColorScheme, useComputedColorScheme } from "@mantine/core";
+import { usePaper } from "../hooks/usePaper";
+import { useBackendStatus } from "../hooks/useBackendStatus";
 
 type Props = {
   sidebarOpen: boolean;
@@ -204,6 +206,14 @@ export default function AppShell({ sidebarOpen, setSidebarOpen, children }: Prop
   const computedScheme        = useComputedColorScheme("light");
   const isDark                = computedScheme === "dark";
 
+  const { portfolio }   = usePaper();
+  const backendStatus   = useBackendStatus();
+  const totalValue  = portfolio?.total_value   ?? null;
+  const returnPct   = portfolio
+    ? ((portfolio.total_value - portfolio.starting_cash) / portfolio.starting_cash * 100)
+    : null;
+  const isUp = (returnPct ?? 0) >= 0;
+
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (!sidebarOpen) return;
@@ -258,15 +268,27 @@ export default function AppShell({ sidebarOpen, setSidebarOpen, children }: Prop
             <div className="rounded-xl bg-slate-900 dark:bg-slate-800 px-4 py-4 relative overflow-hidden">
               <div className="absolute -top-6 -right-6 w-20 h-20 rounded-full bg-white/5" />
               <div className="absolute -bottom-4 -left-4 w-16 h-16 rounded-full bg-white/5" />
-              <p className="relative text-[10px] font-semibold tracking-widest text-slate-400 uppercase mb-1">Total Investment</p>
-              <p className="relative text-xl font-bold text-white mb-1.5">$84,610.42</p>
-              <div className="relative flex items-center gap-1">
-                <svg className="w-3 h-3 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 10l7-7m0 0l7 7m-7-7v18" />
-                </svg>
-                <span className="text-emerald-400 text-xs font-semibold">+18.10%</span>
-                <span className="text-slate-500 text-xs ml-1">YTD</span>
-              </div>
+              <p className="relative text-[10px] font-semibold tracking-widest text-slate-400 uppercase mb-1">Paper Portfolio</p>
+              <p className="relative text-xl font-bold text-white mb-1.5">
+                {totalValue != null
+                  ? `$${totalValue.toLocaleString(undefined, { maximumFractionDigits: 2 })}`
+                  : "Loading…"}
+              </p>
+              {returnPct != null && (
+                <div className="relative flex items-center gap-1">
+                  <svg
+                    className={`w-3 h-3 ${isUp ? "text-emerald-400" : "text-red-400"}`}
+                    fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5}
+                      d={isUp ? "M5 10l7-7m0 0l7 7m-7-7v18" : "M19 14l-7 7m0 0l-7-7m7 7V3"} />
+                  </svg>
+                  <span className={`text-xs font-semibold ${isUp ? "text-emerald-400" : "text-red-400"}`}>
+                    {isUp ? "+" : ""}{returnPct.toFixed(2)}%
+                  </span>
+                  <span className="text-slate-500 text-xs ml-1">return</span>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -292,10 +314,11 @@ export default function AppShell({ sidebarOpen, setSidebarOpen, children }: Prop
             ]}
           />
           <NavItem to="/portfolio" label="Portfolio" icon={icons.portfolio} collapsed={collapsed} />
-          <NavItem to="/orders"    label="Orders"    icon={icons.orders}    badge={{ count: 3, color: "blue" }} collapsed={collapsed} />
+          <NavItem to="/backtest"  label="Backtest"  icon={icons.chart}     collapsed={collapsed} />
+          <NavItem to="/orders"    label="Orders"    icon={icons.orders}    collapsed={collapsed} />
 
           <SectionLabel label="Support" collapsed={collapsed} />
-          <NavItem to="/settings"  label="Settings"  icon={icons.settings}  badge={{ count: 6, color: "red" }} collapsed={collapsed} />
+          <NavItem to="/settings"  label="Settings"  icon={icons.settings}  collapsed={collapsed} />
         </nav>
 
         {/* Bottom: dark mode toggle + collapse */}
@@ -325,6 +348,18 @@ export default function AppShell({ sidebarOpen, setSidebarOpen, children }: Prop
 
       {/* Main content */}
       <main className="flex-1 overflow-y-auto">
+        {/* Backend offline banner */}
+        {backendStatus === "offline" && (
+          <div className="flex items-center gap-2 px-4 py-2.5 bg-red-50 dark:bg-red-950 border-b border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 text-sm">
+            <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+            </svg>
+            <span>
+              <strong>Backend offline</strong> — prices and portfolio data won't update. Make sure uvicorn is running on port 8001.
+            </span>
+          </div>
+        )}
         {children}
       </main>
     </div>
