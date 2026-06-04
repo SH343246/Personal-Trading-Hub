@@ -1,7 +1,7 @@
 import os, logging
 from dotenv import load_dotenv #imp
 
-load_dotenv(override=True) 
+load_dotenv(override=False)  # don't override env vars already set by Railway
 logging.getLogger().warning("DATABASE_URL at runtime: %s", os.getenv("DATABASE_URL"))
 
 from fastapi import Depends, FastAPI

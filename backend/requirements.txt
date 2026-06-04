@@ -1,5 +1,6 @@
 fastapi
 uvicorn[standard]
+itsdangerous
 sqlalchemy>=2.0
 psycopg[binary]
 alembic
