@@ -14,7 +14,7 @@
 import { useState } from "react";
 import type { BacktestRequest, BacktestResult } from "../types/backtest";
 
-const API_BASE = "http://localhost:8001/api";
+import { API as API_BASE } from "../config";
 
 export function useBacktest() {
   const [result,  setResult]  = useState<BacktestResult | null>(null);

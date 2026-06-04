@@ -29,9 +29,13 @@ app = FastAPI()
 
 # Middleware must be registered once — SessionMiddleware first, then CORS
 app.add_middleware(SessionMiddleware, secret_key=os.getenv("SESSION_SECRET", "dev-secret"))
+# Allow local dev + production frontend (set FRONTEND_URL in Railway env vars)
+_frontend_url    = os.getenv("FRONTEND_URL", "http://localhost:5173")
+_allowed_origins = list({_frontend_url, "http://localhost:5173"})
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=_allowed_origins,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],

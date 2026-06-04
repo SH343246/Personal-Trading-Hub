@@ -12,7 +12,7 @@
 import { useState, useEffect, useCallback } from "react";
 import type { OrderRequest, PortfolioOut, TradeOut, EquityPoint } from "../types/paper";
 
-const API = "http://localhost:8001/api";
+import { API } from "../config";
 
 export function usePaper() {
   const [portfolio,  setPortfolio]  = useState<PortfolioOut | null>(null);

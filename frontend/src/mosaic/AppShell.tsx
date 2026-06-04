@@ -3,6 +3,7 @@ import { NavLink } from "react-router-dom";
 import { useMantineColorScheme, useComputedColorScheme } from "@mantine/core";
 import { usePaper } from "../hooks/usePaper";
 import { useBackendStatus } from "../hooks/useBackendStatus";
+import type { EquityPoint } from "../types/paper";
 
 type Props = {
   sidebarOpen: boolean;
@@ -10,66 +11,81 @@ type Props = {
   children: ReactNode;
 };
 
+// ── Formatters ────────────────────────────────────────────────────────────────
+const fmtUSD = (n: number) =>
+  n.toLocaleString("en-US", { style: "currency", currency: "USD" });
+
+const fmtUSDShort = (n: number) => {
+  if (Math.abs(n) >= 1_000_000) return `$${(n / 1_000_000).toFixed(1)}M`;
+  if (Math.abs(n) >= 1_000)     return `$${(n / 1_000).toFixed(1)}K`;
+  return `$${n.toFixed(0)}`;
+};
+
 // ── Icons ─────────────────────────────────────────────────────────────────────
 const icons = {
   home: (
-    <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8}
-        d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+    <svg className="w-[22px] h-[22px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75}
+        d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-7h-6v7H4a1 1 0 0 1-1-1z" />
     </svg>
   ),
   dashboard: (
-    <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8}
+    <svg className="w-[22px] h-[22px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75}
         d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
     </svg>
   ),
   wallet: (
-    <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8}
-        d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+    <svg className="w-[22px] h-[22px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75}
+        d="M3 7.5A2.5 2.5 0 0 1 5.5 5H19a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5.5A2.5 2.5 0 0 1 3 16.5z M16 12.5h3" />
     </svg>
   ),
   news: (
-    <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8}
-        d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" />
+    <svg className="w-[22px] h-[22px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75}
+        d="M3 5h15v14H3z M18 8h3v9a2 2 0 0 1-2 2 M7 9h7M7 13h7M7 17h4" />
     </svg>
   ),
   chart: (
-    <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8}
-        d="M16 8v8m-4-5v5m-4-2v2m-2 4h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+    <svg className="w-[22px] h-[22px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75}
+        d="M3 17l5-5 4 4 8-9 M14 7h6v6" />
     </svg>
   ),
   portfolio: (
-    <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8}
-        d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+    <svg className="w-[22px] h-[22px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75}
+        d="M3 7h18v12H3z M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+    </svg>
+  ),
+  backtest: (
+    <svg className="w-[22px] h-[22px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75}
+        d="M16 8v8m-4-5v5m-4-2v2m-2 4h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
     </svg>
   ),
   orders: (
-    <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8}
-        d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+    <svg className="w-[22px] h-[22px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75}
+        d="M9 5H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-3 M9 3h6a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1H9a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z M9 12h6M9 16h4" />
     </svg>
   ),
   settings: (
-    <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8}
-        d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+    <svg className="w-[22px] h-[22px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75}
+        d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
     </svg>
   ),
   sun: (
-    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8}
+    <svg className="w-[22px] h-[22px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75}
         d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707M17.657 17.657l-.707-.707M6.343 6.343l-.707-.707M12 8a4 4 0 100 8 4 4 0 000-8z" />
     </svg>
   ),
   moon: (
-    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8}
+    <svg className="w-[22px] h-[22px]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75}
         d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
     </svg>
   ),
@@ -83,57 +99,194 @@ const icons = {
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
     </svg>
   ),
+  arrowUpRight: (
+    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.25} d="M7 17 17 7M9 7h8v8" />
+    </svg>
+  ),
+  arrowDownRight: (
+    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.25} d="M7 7l10 10M17 7v10H7" />
+    </svg>
+  ),
+  logo: (
+    <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+        d="M3 3v18h18 M7 12v6 M12 8v10 M17 4v14" />
+    </svg>
+  ),
 };
 
-// ── Sub-components ────────────────────────────────────────────────────────────
-function SectionLabel({ label, collapsed }: { label: string; collapsed: boolean }) {
-  if (collapsed) return <div className="mx-3 my-2 border-t border-slate-100 dark:border-slate-700" />;
+// ── Sparkline ─────────────────────────────────────────────────────────────────
+function Sparkline({ points, positive }: { points: number[]; positive: boolean }) {
+  const w = 120, h = 32;
+  if (points.length < 2) return null;
+  const min   = Math.min(...points);
+  const max   = Math.max(...points);
+  const range = max - min || 1;
+  const step  = w / (points.length - 1);
+  const path  = points
+    .map((p, i) => `${i === 0 ? "M" : "L"} ${i * step} ${h - ((p - min) / range) * (h - 6) - 3}`)
+    .join(" ");
+  const area  = `${path} L ${w} ${h} L 0 ${h} Z`;
+  const color = positive ? "#16a34a" : "#dc2626";
+  const gradId = `spark-grad-${positive ? "up" : "down"}`;
   return (
-    <p className="px-3 pt-5 pb-1.5 text-[10px] font-semibold tracking-widest text-slate-400 dark:text-slate-500 uppercase">
-      {label}
-    </p>
+    <svg viewBox={`0 0 ${w} ${h}`} className="w-full h-8" preserveAspectRatio="none">
+      <defs>
+        <linearGradient id={gradId} x1="0" x2="0" y1="0" y2="1">
+          <stop offset="0%"   stopColor={color} stopOpacity="0.25" />
+          <stop offset="100%" stopColor={color} stopOpacity="0"    />
+        </linearGradient>
+      </defs>
+      <path d={area} fill={`url(#${gradId})`} />
+      <path d={path} stroke={color} strokeWidth={1.5} fill="none"
+        strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
   );
 }
 
-function Badge({ count, color = "red" }: { count: number; color?: "red" | "blue" }) {
-  const bg = color === "blue" ? "bg-blue-500" : "bg-red-500";
+// ── Portfolio card / chip — wired to real usePaper data ───────────────────────
+function PortfolioCardExpanded({
+  totalUSD, changePct, equityPoints,
+}: { totalUSD: number | null; changePct: number | null; equityPoints: EquityPoint[] }) {
+  const positive = (changePct ?? 0) >= 0;
+
+  // Normalize equity values to 0..1 for the sparkline
+  const sparkline = (() => {
+    if (equityPoints.length < 2) return [];
+    const vals = equityPoints.map((p) => p.value);
+    const min  = Math.min(...vals);
+    const max  = Math.max(...vals);
+    const rng  = max - min || 1;
+    return vals.map((v) => (v - min) / rng);
+  })();
+
+  if (totalUSD == null) {
+    return (
+      <div className="mx-3 mb-3 p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
+        <div className="text-[11px] text-slate-400 dark:text-slate-500 mb-1">Portfolio value</div>
+        <div className="h-7 w-28 rounded bg-slate-200 dark:bg-slate-700 animate-pulse mb-1" />
+        <div className="h-8 w-full rounded bg-slate-100 dark:bg-slate-700/50 animate-pulse" />
+      </div>
+    );
+  }
+
+  const [whole, decimals] = fmtUSD(totalUSD).split(".");
   return (
-    <span className={`min-w-[20px] h-5 px-1.5 inline-flex items-center justify-center rounded-full ${bg} text-white text-[10px] font-bold leading-none`}>
-      {count}
-    </span>
+    <div className="mx-3 mb-3 p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
+      <div className="flex items-center justify-between">
+        <div className="text-[11px] text-slate-500 dark:text-slate-400 font-medium tracking-wide">
+          Paper portfolio
+        </div>
+        {changePct != null && (
+          <span className={`inline-flex items-center gap-0.5 text-[10.5px] font-semibold rounded-full px-1.5 py-0.5 ${
+            positive
+              ? "text-green-700 bg-green-100 dark:text-green-300 dark:bg-green-900/40"
+              : "text-red-700 bg-red-100 dark:text-red-300 dark:bg-red-900/40"
+          }`}>
+            {positive ? icons.arrowUpRight : icons.arrowDownRight}
+            {positive ? "+" : ""}{changePct.toFixed(2)}%
+          </span>
+        )}
+      </div>
+      <div className="text-2xl font-bold tracking-tight mt-1 text-slate-900 dark:text-white">
+        {whole}
+        <span className="text-slate-400 dark:text-slate-500 font-medium">.{decimals}</span>
+      </div>
+      <div className="-mx-0.5 mt-1">
+        {sparkline.length >= 2
+          ? <Sparkline points={sparkline} positive={positive} />
+          : <div className="h-8 flex items-center justify-center text-[10px] text-slate-300 dark:text-slate-600">no trade history yet</div>
+        }
+      </div>
+      <div className="flex justify-between text-[10.5px] text-slate-400 dark:text-slate-500 mt-0.5">
+        <span>first trade</span>
+        <span>now</span>
+      </div>
+    </div>
   );
 }
 
+function PortfolioChipCollapsed({
+  totalUSD, changePct,
+}: { totalUSD: number | null; changePct: number | null }) {
+  const positive = (changePct ?? 0) >= 0;
+  const display  = totalUSD != null ? fmtUSDShort(totalUSD) : "…";
+  const pctLabel = changePct != null ? `${positive ? "+" : ""}${changePct.toFixed(1)}%` : "";
+  return (
+    <div
+      title={totalUSD != null ? `Total ${fmtUSD(totalUSD)} · ${pctLabel} return` : "Loading…"}
+      className="mx-2 mb-2.5 py-2 rounded-[10px] bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 flex flex-col items-center gap-0.5"
+    >
+      <div className="font-mono text-xs font-semibold tracking-tight text-slate-900 dark:text-white">
+        {display}
+      </div>
+      {changePct != null && (
+        <div className={`text-[10px] font-semibold inline-flex items-center gap-0.5 ${
+          positive ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"
+        }`}>
+          {positive ? icons.arrowUpRight : icons.arrowDownRight}
+          {pctLabel}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Nav components ────────────────────────────────────────────────────────────
 type NavItemProps = {
   to: string;
   label: string;
   icon: ReactNode;
   end?: boolean;
-  badge?: { count: number; color?: "red" | "blue" };
   collapsed: boolean;
+  badge?: ReactNode;
 };
 
-function NavItem({ to, label, icon, end, badge, collapsed }: NavItemProps) {
+function NavItem({ to, label, icon, end, collapsed, badge }: NavItemProps) {
   return (
     <NavLink
       to={to}
       end={end}
       title={collapsed ? label : undefined}
       className={({ isActive }) =>
-        [
-          "flex items-center gap-3 rounded-lg transition-colors duration-150 select-none",
-          collapsed ? "justify-center px-0 py-2.5 mx-auto w-10" : "px-3 py-2",
-          isActive
-            ? "bg-slate-100 dark:bg-slate-700 text-slate-900 dark:text-white font-semibold"
-            : "text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-800 dark:hover:text-slate-200 font-medium",
-        ].join(" ")
+        collapsed
+          ? [
+              "relative mx-2.5 h-12 rounded-lg flex items-center justify-center transition-colors duration-150 select-none border-none no-underline",
+              isActive
+                ? "bg-blue-50 dark:bg-blue-500/15 text-blue-600 dark:text-blue-400"
+                : "text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-700 dark:hover:text-slate-200",
+            ].join(" ")
+          : [
+              "relative flex items-center gap-3 px-[18px] py-5 text-[17px] transition-colors duration-150 select-none border-none no-underline",
+              isActive
+                ? "text-slate-900 dark:text-white font-semibold bg-gradient-to-r from-blue-500/10 to-transparent dark:from-blue-400/15"
+                : "text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60 hover:text-slate-800 dark:hover:text-slate-200 font-medium",
+            ].join(" ")
       }
     >
-      <span className="flex-shrink-0">{icon}</span>
-      {!collapsed && (
+      {({ isActive }) => (
         <>
-          <span className="flex-1 text-sm">{label}</span>
-          {badge && badge.count > 0 && <Badge count={badge.count} color={badge.color} />}
+          {isActive && (
+            <span
+              aria-hidden
+              className={
+                collapsed
+                  ? "absolute -left-2.5 top-2 bottom-2 w-[3px] rounded-r bg-blue-600 dark:bg-blue-400"
+                  : "absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-r bg-blue-600 dark:bg-blue-400"
+              }
+            />
+          )}
+          <span className={`flex-shrink-0 ${isActive ? "text-blue-600 dark:text-blue-400" : "text-slate-400 dark:text-slate-500"}`}>
+            {icon}
+          </span>
+          {!collapsed && (
+            <>
+              <span className="flex-1">{label}</span>
+              {badge}
+            </>
+          )}
         </>
       )}
     </NavLink>
@@ -154,7 +307,7 @@ function GroupItem({ label, icon, children, collapsed }: GroupItemProps) {
     return (
       <button
         title={label}
-        className="flex justify-center items-center w-10 mx-auto py-2.5 rounded-lg text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-800 dark:hover:text-slate-200 transition-colors"
+        className="relative mx-2.5 h-11 w-auto rounded-lg flex items-center justify-center text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-700 dark:hover:text-slate-200 transition-colors"
         onClick={() => setOpen(!open)}
       >
         {icon}
@@ -166,22 +319,22 @@ function GroupItem({ label, icon, children, collapsed }: GroupItemProps) {
     <div>
       <button
         onClick={() => setOpen(!open)}
-        className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-800 dark:hover:text-slate-200 transition-colors duration-150 select-none"
+        className="w-full flex items-center gap-3 px-[18px] py-5 text-[17px] font-medium text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60 hover:text-slate-800 dark:hover:text-slate-200 transition-colors duration-150 select-none"
       >
-        <span className="flex-shrink-0">{icon}</span>
+        <span className="flex-shrink-0 text-slate-400 dark:text-slate-500">{icon}</span>
         <span className="flex-1 text-left">{label}</span>
-        <span className={`transition-transform duration-200 ${open ? "rotate-180" : ""}`}>
+        <span className={`transition-transform duration-200 text-slate-400 dark:text-slate-500 ${open ? "rotate-180" : ""}`}>
           {icons.chevronDown}
         </span>
       </button>
       {open && (
-        <div className="mt-0.5 ml-8 space-y-0.5">
+        <div className="mt-0.5 mb-1 ml-[42px] mr-3 space-y-0.5">
           {children.map((c) => (
             <NavLink
               key={c.to}
               to={c.to}
               className={({ isActive }) =>
-                `block px-3 py-1.5 rounded-md text-sm transition-colors duration-150 ${
+                `block px-2.5 py-1 rounded-md text-[13px] transition-colors duration-150 border-none no-underline ${
                   isActive
                     ? "text-slate-900 dark:text-white font-semibold"
                     : "text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 font-medium"
@@ -199,20 +352,29 @@ function GroupItem({ label, icon, children, collapsed }: GroupItemProps) {
 
 // ── AppShell ──────────────────────────────────────────────────────────────────
 export default function AppShell({ sidebarOpen, setSidebarOpen, children }: Props) {
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    return window.localStorage.getItem("gostock.sidebar.collapsed") === "1";
+  });
+  useEffect(() => {
+    window.localStorage.setItem("gostock.sidebar.collapsed", collapsed ? "1" : "0");
+  }, [collapsed]);
+
   const sidebarRef = useRef<HTMLDivElement>(null);
 
   const { toggleColorScheme } = useMantineColorScheme();
   const computedScheme        = useComputedColorScheme("light");
   const isDark                = computedScheme === "dark";
 
-  const { portfolio }   = usePaper();
-  const backendStatus   = useBackendStatus();
-  const totalValue  = portfolio?.total_value   ?? null;
-  const returnPct   = portfolio
+  // Real portfolio data
+  const { portfolio, equity } = usePaper();
+  const totalUSD   = portfolio?.total_value ?? null;
+  const changePct  = portfolio
     ? ((portfolio.total_value - portfolio.starting_cash) / portfolio.starting_cash * 100)
     : null;
-  const isUp = (returnPct ?? 0) >= 0;
+
+  // Backend health banner
+  const backendStatus = useBackendStatus();
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -231,7 +393,7 @@ export default function AppShell({ sidebarOpen, setSidebarOpen, children }: Prop
   }, [setSidebarOpen]);
 
   return (
-    <div className="flex h-screen overflow-hidden bg-slate-50 dark:bg-slate-950">
+    <div className="flex h-screen overflow-hidden bg-slate-50 dark:bg-slate-950 lg:gap-3">
 
       {/* Mobile backdrop */}
       <div
@@ -242,7 +404,7 @@ export default function AppShell({ sidebarOpen, setSidebarOpen, children }: Prop
       {/* Sidebar */}
       <aside
         ref={sidebarRef}
-        style={{ width: collapsed ? 68 : 224 }}
+        style={{ width: collapsed ? 68 : 240 }}
         className={[
           "fixed z-50 left-0 top-0 h-screen flex flex-col",
           "bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800",
@@ -252,91 +414,55 @@ export default function AppShell({ sidebarOpen, setSidebarOpen, children }: Prop
         ].join(" ")}
       >
         {/* Logo */}
-        <div className={`flex items-center gap-3 px-4 py-4 border-b border-slate-100 dark:border-slate-800 ${collapsed ? "justify-center" : ""}`}>
-          <div className="h-8 w-8 rounded-lg bg-slate-900 dark:bg-slate-700 flex items-center justify-center flex-shrink-0">
-            <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-            </svg>
+        <div className={`flex items-center gap-2.5 px-4 py-4 ${collapsed ? "justify-center" : ""}`}>
+          <div className="h-[30px] w-[30px] rounded-lg bg-slate-900 dark:bg-slate-700 flex items-center justify-center flex-shrink-0">
+            {icons.logo}
           </div>
-          {!collapsed && <span className="font-semibold text-slate-900 dark:text-white">GoStock</span>}
+          {!collapsed && <span className="font-bold text-base tracking-tight text-slate-900 dark:text-white">Trading Hub</span>}
         </div>
 
-        {/* Investment card */}
-        {!collapsed && (
-          <div className="mx-3 mt-4">
-            <div className="rounded-xl bg-slate-900 dark:bg-slate-800 px-4 py-4 relative overflow-hidden">
-              <div className="absolute -top-6 -right-6 w-20 h-20 rounded-full bg-white/5" />
-              <div className="absolute -bottom-4 -left-4 w-16 h-16 rounded-full bg-white/5" />
-              <p className="relative text-[10px] font-semibold tracking-widest text-slate-400 uppercase mb-1">Paper Portfolio</p>
-              <p className="relative text-xl font-bold text-white mb-1.5">
-                {totalValue != null
-                  ? `$${totalValue.toLocaleString(undefined, { maximumFractionDigits: 2 })}`
-                  : "Loading…"}
-              </p>
-              {returnPct != null && (
-                <div className="relative flex items-center gap-1">
-                  <svg
-                    className={`w-3 h-3 ${isUp ? "text-emerald-400" : "text-red-400"}`}
-                    fill="none" stroke="currentColor" viewBox="0 0 24 24"
-                  >
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5}
-                      d={isUp ? "M5 10l7-7m0 0l7 7m-7-7v18" : "M19 14l-7 7m0 0l-7-7m7 7V3"} />
-                  </svg>
-                  <span className={`text-xs font-semibold ${isUp ? "text-emerald-400" : "text-red-400"}`}>
-                    {isUp ? "+" : ""}{returnPct.toFixed(2)}%
-                  </span>
-                  <span className="text-slate-500 text-xs ml-1">return</span>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
+        {/* Portfolio card — real data */}
+        {collapsed
+          ? <PortfolioChipCollapsed totalUSD={totalUSD} changePct={changePct} />
+          : <PortfolioCardExpanded  totalUSD={totalUSD} changePct={changePct} equityPoints={equity} />
+        }
 
         {/* Nav */}
-        <nav className="flex-1 overflow-y-auto px-2 py-1">
-          <SectionLabel label="Main" collapsed={collapsed} />
-          <NavItem to="/home"      label="Home"      icon={icons.home}      end collapsed={collapsed} />
-          <NavItem to="/dashboard" label="Dashboard" icon={icons.dashboard}     collapsed={collapsed} />
-          <NavItem to="/wallet"    label="Wallet"    icon={icons.wallet}        collapsed={collapsed} />
-          <NavItem to="/news"      label="News"      icon={icons.news}          collapsed={collapsed} />
+        <nav className="overflow-y-auto py-2">
 
-          <SectionLabel label="Markets" collapsed={collapsed} />
-          <GroupItem
-            label="Stocks & Funds"
-            icon={icons.chart}
-            collapsed={collapsed}
-            children={[
-              { label: "Equities", to: "/stock-fund/equities" },
-              { label: "Crypto",   to: "/stock-fund/crypto"   },
-              { label: "Funds",    to: "/stock-fund/funds"    },
-              { label: "Bonds",    to: "/stock-fund/bonds"    },
-            ]}
-          />
+          <NavItem to="/dashboard" label="Dashboard" icon={icons.dashboard} collapsed={collapsed} />
+          <NavItem to="/news"      label="News"      icon={icons.news}      collapsed={collapsed} />
+
+          {/* Divider */}
+          <div className={`h-px bg-slate-200 dark:bg-slate-800 my-2 ${collapsed ? "mx-4" : "mx-[18px]"}`} />
+
           <NavItem to="/portfolio" label="Portfolio" icon={icons.portfolio} collapsed={collapsed} />
-          <NavItem to="/backtest"  label="Backtest"  icon={icons.chart}     collapsed={collapsed} />
-          <NavItem to="/orders"    label="Orders"    icon={icons.orders}    collapsed={collapsed} />
+          <NavItem to="/backtest"  label="Backtest"  icon={icons.backtest}  collapsed={collapsed} />
 
-          <SectionLabel label="Support" collapsed={collapsed} />
-          <NavItem to="/settings"  label="Settings"  icon={icons.settings}  collapsed={collapsed} />
         </nav>
 
-        {/* Bottom: dark mode toggle + collapse */}
-        <div className="border-t border-slate-100 dark:border-slate-800 px-3 py-3 space-y-1">
-          {/* Dark mode toggle */}
+        <div className="pb-2 border-t border-slate-100 dark:border-slate-800 pt-2">
+          <NavItem to="/settings" label="Settings" icon={icons.settings} collapsed={collapsed} />
+        </div>
+
+
+        {/* Footer: dark mode + collapse */}
+        <div className="border-t border-slate-200 dark:border-slate-800 pt-1 pb-2">
           <button
             onClick={() => toggleColorScheme()}
-            className={`flex items-center gap-2 w-full rounded-lg px-2 py-2 text-sm text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-700 dark:hover:text-slate-200 transition-colors ${collapsed ? "justify-center" : ""}`}
             title={isDark ? "Switch to light mode" : "Switch to dark mode"}
+            style={{ appearance: "none", border: "none", background: "none", outline: "none" }}
+            className={`flex items-center gap-3 w-full px-[18px] py-5 text-[17px] text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60 hover:text-slate-800 dark:hover:text-slate-200 transition-colors cursor-pointer ${collapsed ? "justify-center" : ""}`}
           >
             {isDark ? icons.sun : icons.moon}
             {!collapsed && <span>{isDark ? "Light mode" : "Dark mode"}</span>}
           </button>
 
-          {/* Collapse toggle */}
           <button
             onClick={() => setCollapsed(!collapsed)}
-            className={`hidden lg:flex items-center gap-2 w-full rounded-lg px-2 py-2 text-sm text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-slate-700 dark:hover:text-slate-200 transition-colors ${collapsed ? "justify-center" : ""}`}
+            title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+            style={{ appearance: "none", border: "none", background: "none", outline: "none" }}
+            className={`hidden lg:flex items-center gap-3 w-full px-[18px] py-5 text-[17px] text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60 hover:text-slate-800 dark:hover:text-slate-200 transition-colors cursor-pointer ${collapsed ? "justify-center" : ""}`}
           >
             <span className={`transition-transform duration-200 ${collapsed ? "rotate-180" : ""}`}>
               {icons.chevronLeft}

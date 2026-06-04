@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import type { Candle, Tick } from "../types/types";
+import { API } from "../config";
 
 export type timeFrame = "1m" | "5m" | "1h" | "1d";
 
@@ -77,8 +78,7 @@ export function useCandles(symbol: string, tf: timeFrame = "1m", limit = 120, ti
 
   useEffect(() => { //if smbl, tf,limit change, refetch
     let cancelled = false;
-    const base = import.meta.env?.VITE_API_URL ?? "http://localhost:8001";
-    const url = `${base}/api/candles/${encodeURIComponent(symbol)}?tf=${tf}&limit=${limit}`;
+    const url = `${API}/candles/${encodeURIComponent(symbol)}?tf=${tf}&limit=${limit}`;
 
     fetch(url)
       .then((response) => response.json())

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import type { Tick } from "../types/types";
+import { WS_BASE } from "../config";
 
 const HEARTBEAT_INTERVAL_MS = 5000;
 const RECONNECT_DELAY_MS = 2000;
@@ -28,9 +29,7 @@ export function useTicker(symbol: string) {
     let heartbeatId: ReturnType<typeof setInterval> | null = null;
     let reconnectId: ReturnType<typeof setTimeout> | null = null;
 
-    const base = (import.meta.env?.VITE_API_URL ?? "http://localhost:8001")
-      .replace(/^http/, "ws");
-    const url = `${base}/ws/ticks/${symbol.toUpperCase()}`;
+    const url = `${WS_BASE}/ws/ticks/${symbol.toUpperCase()}`;
 
     function connect() {
       if (cancelled) return;

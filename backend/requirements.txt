@@ -7,3 +7,16 @@ python-jose[cryptography]
 passlib[bcrypt]
 pydantic
 pydantic-settings
+pytest
+# Data & task queue
+yfinance
+celery
+redis
+python-dotenv
+pytz
+requests
+websockets
+# Async / server
+httptools
+uvloop
+watchfiles

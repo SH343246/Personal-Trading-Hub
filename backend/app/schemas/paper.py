@@ -7,7 +7,7 @@ Request  = what the frontend sends in
 Response = what the backend sends back
 """
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from datetime import datetime
 from typing import Optional
 
@@ -36,8 +36,7 @@ class TradeOut(BaseModel):
     executed_at: datetime
     note:        Optional[str]
 
-    class Config:
-        from_attributes = True   # lets Pydantic read from SQLAlchemy model objects
+    model_config = ConfigDict(from_attributes=True)
 
 
 # ---------------------------------------------------------------------------

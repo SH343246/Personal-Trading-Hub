@@ -24,8 +24,7 @@ import {
 } from "recharts";
 import { usePaper } from "../hooks/usePaper";
 import type { EquityPoint } from "../types/paper";
-
-const API = "http://localhost:8001";
+import { API_BASE } from "../config";
 
 // ---------------------------------------------------------------------------
 // Live price row — REST-based, works for ANY ticker (not just watchlist)
@@ -43,7 +42,7 @@ function LivePriceRow({ symbol }: { symbol: string }) {
     // Debounce 450ms so we don't fire on every keystroke
     const timer = setTimeout(async () => {
       try {
-        const res = await fetch(`${API}/prices/${symbol.toUpperCase()}/latest`);
+        const res = await fetch(`${API_BASE}/prices/${symbol.toUpperCase()}/latest`);
         if (res.ok) {
           const data = await res.json();
           setPrice(data.price);

@@ -1,4 +1,5 @@
 import { useState, useCallback } from "react";
+import { API_BASE } from "../config";
 
 const STORAGE_KEY = "watchlist_v1";
 const DEFAULT_SYMBOLS = ["AAPL", "MSFT", "NVDA", "AMZN", "TSLA"];
@@ -45,7 +46,7 @@ export function useWatchlist() {
     setError(null);
 
     try {
-      const base = import.meta.env?.VITE_API_URL ?? "http://localhost:8001";
+      const base = API_BASE;
 
       // Step 1: verify the symbol exists
       const res = await fetch(`${base}/api/symbols/verify?symbol=${encodeURIComponent(sym)}`);

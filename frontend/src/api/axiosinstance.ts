@@ -1,7 +1,8 @@
 import axios from "axios";
 import { logout } from "./logout";
+import { API } from "../config";
 
-const baseURL = import.meta.env.VITE_API_BASE_URL ?? (import.meta.env.DEV ? `${import.meta.env.VITE_API_URL ?? "http://localhost:8001"}/api` : "/api");
+const baseURL = import.meta.env.VITE_API_BASE_URL ?? API;
 
 const api = axios.create({ baseURL });
 

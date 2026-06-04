@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Card, Text, Stack, Anchor, Group, Skeleton, Divider } from "@mantine/core";
+import { API } from "../config";
 
 interface Article {
   title: string;
@@ -14,8 +15,7 @@ export function NewsCard({ symbol }: { symbol: string }) {
   useEffect(() => {
     if (!symbol) return;
     setArticles(null);
-    const base = import.meta.env?.VITE_API_URL ?? "http://localhost:8001";
-    fetch(`${base}/api/news/${encodeURIComponent(symbol)}?limit=6`)
+    fetch(`${API}/news/${encodeURIComponent(symbol)}?limit=6`)
       .then((r) => r.json())
       .then((d) => setArticles(Array.isArray(d) ? d : []))
       .catch(() => setArticles([]));

@@ -7,9 +7,7 @@ export default function Login() {
   const nav = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const base =
-    import.meta.env.VITE_API_BASE_URL ??
-    (import.meta.env.DEV ? "http://localhost:8000/api" : "/api");
+  // base URL not used directly — Login uses the axiosinstance which reads from config
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();

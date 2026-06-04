@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Card, Group, Text, Stack, Skeleton } from "@mantine/core";
+import { API } from "../config";
 
 interface Stats {
   market_cap: string | null;
@@ -29,8 +30,7 @@ export function KeyStatsCard({ symbol }: { symbol: string }) {
   useEffect(() => {
     if (!symbol) return;
     setStats(null); // reset on symbol change
-    const base = import.meta.env?.VITE_API_URL ?? "http://localhost:8001";
-    fetch(`${base}/api/stats/${encodeURIComponent(symbol)}`)
+    fetch(`${API}/stats/${encodeURIComponent(symbol)}`)
       .then((r) => r.json())
       .then((d) => setStats(d))
       .catch(() => {});
