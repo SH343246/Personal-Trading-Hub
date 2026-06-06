@@ -1,4 +1,5 @@
 import os
+import ssl
 from celery import Celery
 from celery.schedules import crontab
 from dotenv import load_dotenv
@@ -12,6 +13,11 @@ from app.worker import tasks
 
 app.conf.timezone = "UTC"
 app.conf.enable_utc = True
+app.conf.worker_concurrency = 2
+
+# Upstash uses rediss:// (TLS) — skip cert verification since we trust the URL
+if BROKER_URL.startswith("rediss://"):
+    app.conf.broker_use_ssl = {"ssl_cert_reqs": ssl.CERT_NONE}
 
 app.conf.beat_schedule = {
     # Intraday OHLCV — runs every 30s during market hours
