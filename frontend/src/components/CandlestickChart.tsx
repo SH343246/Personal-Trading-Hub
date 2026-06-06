@@ -161,7 +161,7 @@ export function CandlestickChart({ candles, tick, apiTf, height = 320 }: Props) 
     high:   lastCandle.high,
     low:    lastCandle.low,
     close:  tick?.price ?? lastCandle.close,
-    volume: lastCandle.volume,
+    volume: lastCandle.volume ?? null,
   } : null);
 
   function toggle(key: IndicatorKey) {
@@ -232,7 +232,7 @@ export function CandlestickChart({ candles, tick, apiTf, height = 320 }: Props) 
     for (const [key, cfg] of Object.entries(INDICATORS) as [IndicatorKey, typeof INDICATORS[IndicatorKey]][]) {
       newMaRefs[key] = chart.addSeries(LineSeries, {
         color:            cfg.color,
-        lineWidth:        1.5,
+        lineWidth:        2,
         lineStyle:        LineStyle.Solid,
         priceLineVisible: false,
         lastValueVisible: true,
