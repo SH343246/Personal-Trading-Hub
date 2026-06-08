@@ -34,8 +34,21 @@ app.conf.beat_schedule = {
 }
 
 
+DEFAULT_SYMBOLS = ["AAPL", "MSFT", "NVDA", "AMZN", "TSLA"]
+
 @app.on_after_finalize.connect
 def run_historical_on_startup(sender, **kwargs):
-    """Kick off a historical backfill immediately when the worker starts up
-    so the 1H and 1D charts have data without waiting until 6 PM."""
+    """On worker start: seed default symbols into Redis if watched_symbols is
+    empty, then kick off a full historical backfill and an immediate price fetch."""
+    try:
+        watched = tasks.r.smembers("watched_symbols")
+        if not watched:
+            seeds = [s for s in DEFAULT_SYMBOLS if s not in (tasks._ENV_SYMBOLS or [])]
+            if seeds:
+                tasks.r.sadd("watched_symbols", *seeds)
+                print(f"[startup] seeded watched_symbols with {seeds}")
+    except Exception as e:
+        print(f"[startup] could not seed watched_symbols: {e}")
+
     tasks.fetch_historical.delay()
+    tasks.fetch_price_batch.delay()
