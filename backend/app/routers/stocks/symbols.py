@@ -15,8 +15,10 @@ from app.db.repository import upsert_candle_ohlcv
 
 router = APIRouter()
 
+import ssl as _ssl
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
-_redis = redis.Redis.from_url(REDIS_URL, decode_responses=True)
+_redis_ssl = {"ssl_cert_reqs": _ssl.CERT_NONE} if REDIS_URL.startswith("rediss://") else {}
+_redis = redis.Redis.from_url(REDIS_URL, decode_responses=True, **_redis_ssl)
 
 WATCHED_KEY = "watched_symbols"   # Redis SET of user-added symbols
 

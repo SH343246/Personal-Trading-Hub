@@ -3,10 +3,16 @@ import asyncio, os, json
 from typing import Dict, Set
 from datetime import datetime, timezone
 
+import ssl
 import redis.asyncio as redis
 
 router = APIRouter()
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379")
+
+def _redis_kwargs() -> dict:
+    if REDIS_URL.startswith("rediss://"):
+        return {"ssl_cert_reqs": ssl.CERT_NONE}
+    return {}
 
 class Hub:
     def __init__(self):
@@ -16,7 +22,7 @@ class Hub:
 
     async def start(self):
         if not self.redis:
-            self.redis = redis.from_url(REDIS_URL, decode_responses=True)
+            self.redis = redis.from_url(REDIS_URL, decode_responses=True, **_redis_kwargs())
 
 
     async def send_initial_snapshot(self, s: str, ws: WebSocket):

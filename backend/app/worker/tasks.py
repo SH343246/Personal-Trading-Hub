@@ -11,8 +11,10 @@ import redis
 import yfinance
 
 
+import ssl as _ssl
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
-r = redis.Redis.from_url(REDIS_URL, decode_responses=True)
+_redis_ssl = {"ssl_cert_reqs": _ssl.CERT_NONE} if REDIS_URL.startswith("rediss://") else {}
+r = redis.Redis.from_url(REDIS_URL, decode_responses=True, **_redis_ssl)
 
 
 @app.task(name="ping")

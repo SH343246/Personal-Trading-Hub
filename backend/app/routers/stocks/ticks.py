@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException
 from redis import asyncio as aioredis
-import os, json
+import os, json, ssl
 from app.config import SessionLocal
 from app.db.repository import get_latest_tick
 
@@ -9,7 +9,8 @@ router = APIRouter(prefix="/market", tags=["market"])
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379")
 
 def get_redis():
-    return aioredis.from_url(REDIS_URL, decode_responses=True)
+    kwargs = {"ssl_cert_reqs": ssl.CERT_NONE} if REDIS_URL.startswith("rediss://") else {}
+    return aioredis.from_url(REDIS_URL, decode_responses=True, **kwargs)
 
 @router.get("/tick/{symbol}")
 async def get_tick(symbol: str):
