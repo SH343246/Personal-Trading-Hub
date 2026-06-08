@@ -6,10 +6,10 @@ from app.db.repository import get_latest_tick
 
 router = APIRouter(prefix="/market", tags=["market"])
 
+REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379")
+
 def get_redis():
-    url = "redis://localhost:6379"
-    print("DEBUG get_redis() using:", url)
-    return aioredis.from_url(url, decode_responses=True)
+    return aioredis.from_url(REDIS_URL, decode_responses=True)
 
 @router.get("/tick/{symbol}")
 async def get_tick(symbol: str):
