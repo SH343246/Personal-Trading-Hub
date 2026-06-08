@@ -315,7 +315,13 @@ export function CandlestickChart({ candles, tick, apiTf, height = 320 }: Props) 
 
   // ── Load candle + volume + MA data ───────────────────────────────────────
   useEffect(() => {
-    if (!seriesRef.current || !volRef.current || !chartRef.current || candles.length === 0) return;
+    if (!seriesRef.current || !volRef.current || !chartRef.current) return;
+
+    if (candles.length === 0) {
+      seriesRef.current.setData([]);
+      volRef.current.setData([]);
+      return;
+    }
 
     seriesRef.current.setData(
       candles.map((c) => ({

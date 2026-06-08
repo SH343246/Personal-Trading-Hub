@@ -1,5 +1,7 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { API_BASE } from "../config";
+
+const SEEDED_KEY = "watchlist_seeded_v1";
 
 const STORAGE_KEY = "watchlist_v1";
 const DEFAULT_SYMBOLS = ["AAPL", "MSFT", "NVDA", "AMZN", "TSLA"];
@@ -33,6 +35,27 @@ export function useWatchlist() {
   const [symbols, setSymbols] = useState<string[]>(loadFromStorage);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // On first load, seed any symbols that haven't been registered with the backend yet.
+  // This handles the case where the user has symbols in localStorage (from a previous
+  // session) but the backend Redis is fresh (new deployment, Upstash reset, etc.).
+  useEffect(() => {
+    const alreadySeeded = new Set<string>(
+      JSON.parse(localStorage.getItem(SEEDED_KEY) ?? "[]")
+    );
+    const toSeed = symbols.filter((s) => !alreadySeeded.has(s));
+    if (toSeed.length === 0) return;
+
+    const base = API_BASE;
+    toSeed.forEach((sym) => {
+      fetch(`${base}/api/symbols/seed?symbol=${encodeURIComponent(sym)}`, { method: "POST" })
+        .then(() => {
+          alreadySeeded.add(sym);
+          localStorage.setItem(SEEDED_KEY, JSON.stringify([...alreadySeeded]));
+        })
+        .catch(() => {}); // silently ignore — next load will retry
+    });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const addSymbol = useCallback(async (raw: string): Promise<AddResult> => {
     const sym = raw.trim().toUpperCase();
@@ -75,6 +98,10 @@ export function useWatchlist() {
         saveToStorage(next);
         return next;
       });
+      // Mark as seeded so the startup effect doesn't re-seed it
+      const seeded = new Set<string>(JSON.parse(localStorage.getItem(SEEDED_KEY) ?? "[]"));
+      seeded.add(data.symbol);
+      localStorage.setItem(SEEDED_KEY, JSON.stringify([...seeded]));
       return { ok: true, symbol: data.symbol, price: data.price };
     } catch (e) {
       const msg = "Network error — try again";
