@@ -10,7 +10,7 @@ from fastapi import APIRouter, Query, Depends
 from sqlalchemy.orm import Session
 
 from app.deps import get_db
-from app.models1.models import Candle1m, Candle5m, Candle1h, Candle1d
+from app.models1.models import Candle1m, Candle5m
 from app.db.repository import upsert_candle_ohlcv
 
 router = APIRouter()
@@ -120,29 +120,12 @@ def seed_symbol(symbol: str = Query(...), db: Session = Depends(get_db)):
         # --- Register for ongoing Celery updates ---
         _redis.sadd(WATCHED_KEY, sym)
 
-        # --- Fetch 1H and 1D history inline so the chart is ready immediately ---
-        ticker2 = yfinance.Ticker(sym)
-        df_1h = ticker2.history(period="60d", interval="1h")
-        bars_1h = 0
-        for ts_idx, row in df_1h.iterrows():
-            bucket = _to_utc(ts_idx.to_pydatetime().replace(minute=0, second=0, microsecond=0))
-            vol = 0 if math.isnan(row["Volume"]) else int(row["Volume"])
-            upsert_candle_ohlcv(db, Candle1h, sym, bucket,
-                Decimal(str(row["Open"])), Decimal(str(row["High"])),
-                Decimal(str(row["Low"])), Decimal(str(row["Close"])), vol)
-            bars_1h += 1
+        # Kick off a historical backfill so 1H and 1D charts are populated
+        # immediately rather than waiting for the nightly scheduled run.
+        from app.worker.tasks import fetch_historical
+        fetch_historical.delay()
 
-        df_1d = ticker2.history(period="max", interval="1d")
-        bars_1d = 0
-        for ts_idx, row in df_1d.iterrows():
-            bucket = _to_utc(ts_idx.to_pydatetime().replace(hour=0, minute=0, second=0, microsecond=0))
-            vol = 0 if math.isnan(row["Volume"]) else int(row["Volume"])
-            upsert_candle_ohlcv(db, Candle1d, sym, bucket,
-                Decimal(str(row["Open"])), Decimal(str(row["High"])),
-                Decimal(str(row["Low"])), Decimal(str(row["Close"])), vol)
-            bars_1d += 1
-
-        return {"status": "ok", "symbol": sym, "bars_1m": bars_1m, "bars_5m": bars_5m, "bars_1h": bars_1h, "bars_1d": bars_1d}
+        return {"status": "ok", "symbol": sym, "bars_1m": bars_1m, "bars_5m": bars_5m}
 
     except Exception as e:
         return {"status": "error", "symbol": sym, "error": str(e)}
