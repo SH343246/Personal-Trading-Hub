@@ -5,7 +5,7 @@ from .celery_app import app
 from app.config import SessionLocal
 from app.models1.models import Candle1m, Candle5m, Candle1h, Candle1d
 from app.db.repository import insert_tick, upsert_candle_ohlcv
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 import json
 import redis
 import yfinance
@@ -84,8 +84,13 @@ def fetch_price_batch():
             try:
                 ticker = yfinance.Ticker(symbol)
 
-                # --- 1-minute bars (today only) ---
-                df_1m = ticker.history(period="1d", interval="1m")
+                # Only fetch the last 10 minutes — much faster than period="1d"
+                now_utc = datetime.now(timezone.utc)
+                start_1m = now_utc - timedelta(minutes=10)
+                start_5m = now_utc - timedelta(minutes=30)
+
+                # --- 1-minute bars (last 10 min) ---
+                df_1m = ticker.history(start=start_1m, interval="1m")
                 if df_1m.empty:
                     print(f"[fetch] {symbol}: no 1m history returned")
                     continue
@@ -102,8 +107,8 @@ def fetch_price_batch():
                         vol,
                     )
 
-                # --- 5-minute bars (today only) ---
-                df_5m = ticker.history(period="1d", interval="5m")
+                # --- 5-minute bars (last 30 min) ---
+                df_5m = ticker.history(start=start_5m, interval="5m")
                 for ts_idx, row in df_5m.iterrows():
                     bucket = _to_utc(ts_idx.to_pydatetime().replace(second=0, microsecond=0))
                     vol = 0 if math.isnan(row["Volume"]) else int(row["Volume"])

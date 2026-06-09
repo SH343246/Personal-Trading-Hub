@@ -25,10 +25,10 @@ app.conf.beat_schedule = {
         "task": "fetch_ticks",
         "schedule": 15,
     },
-    # Full OHLCV candle refresh — heavier, runs every 60s
+    # OHLCV candle refresh — now fast (only last 10 min of bars), runs every 30s
     "fetch-prices": {
         "task": "fetch_price_batch",
-        "schedule": max(INTERVAL, 60),
+        "schedule": INTERVAL,
     },
     # Historical backfill — runs once daily at 6 PM UTC (after US market close)
     # Keeps 1h and 1d tables fresh with the latest completed bars.
