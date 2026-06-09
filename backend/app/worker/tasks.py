@@ -42,12 +42,41 @@ def _to_utc(dt: datetime) -> datetime:
     return dt.astimezone(timezone.utc)
 
 
+@app.task(name="fetch_ticks")
+def fetch_ticks():
+    """
+    Fast tick-only update using fast_info — one lightweight API call per symbol.
+    Publishes latest price to Redis so WebSocket clients get near-real-time updates.
+    Runs every FETCH_INTERVAL_SECONDS (default 30s).
+    """
+    ts_ms = int(datetime.now(timezone.utc).timestamp() * 1000)
+    for symbol in _get_symbols():
+        try:
+            info = yfinance.Ticker(symbol).fast_info
+            price = float(info.last_price)
+            volume = int(info.three_month_average_volume or 0)
+            payload = {
+                "symbol": symbol,
+                "price":  price,
+                "volume": volume,
+                "event_ts": ts_ms,
+                "newTickTimestamp": ts_ms,
+            }
+            r.set(f"tick:{symbol}", json.dumps(payload))
+            r.publish(f"ticks:{symbol}", json.dumps(payload))
+            print(f"[tick] {symbol} price={price:.2f}")
+        except Exception as e:
+            print(f"[fetch_ticks] {symbol} error: {e}")
+
+    return {"status": "ok", "symbols": _get_symbols()}
+
+
 @app.task(name="fetch_price_batch")
 def fetch_price_batch():
     """
-    Fetch real OHLCV bars from Yahoo Finance history for each symbol and
-    upsert them into the DB.  Using history() gives us proper open/high/low/close
-    and real per-bar volume — much better than polling fast_info every 30s.
+    Full OHLCV candle update via history() — runs every FETCH_INTERVAL_SECONDS
+    to keep 1m and 5m candle tables fresh. Slower than fetch_ticks but gives
+    proper OHLCV bars for the chart.
     """
     db = SessionLocal()
     try:
@@ -87,13 +116,12 @@ def fetch_price_batch():
                         vol,
                     )
 
-                # --- Publish latest close as WebSocket tick ---
+                # Also publish tick from latest 1m bar
                 latest = df_1m.iloc[-1]
                 latest_ts = _to_utc(df_1m.index[-1].to_pydatetime())
                 latest_price = float(latest["Close"])
                 latest_vol   = 0 if math.isnan(latest["Volume"]) else int(latest["Volume"])
                 ts_ms = int(latest_ts.timestamp() * 1000)
-
                 payload = {
                     "symbol": symbol,
                     "price":  latest_price,

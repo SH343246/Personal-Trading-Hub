@@ -20,10 +20,15 @@ if BROKER_URL.startswith("rediss://"):
     app.conf.broker_use_ssl = {"ssl_cert_reqs": ssl.CERT_NONE}
 
 app.conf.beat_schedule = {
-    # Intraday OHLCV — runs every 30s during market hours
+    # Fast tick updates via fast_info — lightweight, runs every 15s
+    "fetch-ticks": {
+        "task": "fetch_ticks",
+        "schedule": 15,
+    },
+    # Full OHLCV candle refresh — heavier, runs every 60s
     "fetch-prices": {
         "task": "fetch_price_batch",
-        "schedule": INTERVAL,
+        "schedule": max(INTERVAL, 60),
     },
     # Historical backfill — runs once daily at 6 PM UTC (after US market close)
     # Keeps 1h and 1d tables fresh with the latest completed bars.
@@ -50,5 +55,6 @@ def run_historical_on_startup(sender, **kwargs):
     except Exception as e:
         print(f"[startup] could not seed watched_symbols: {e}")
 
-    tasks.fetch_historical.delay()
+    tasks.fetch_ticks.delay()
     tasks.fetch_price_batch.delay()
+    tasks.fetch_historical.delay()
