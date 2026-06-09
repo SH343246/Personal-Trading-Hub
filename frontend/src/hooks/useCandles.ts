@@ -80,23 +80,39 @@ export function useCandles(symbol: string, tf: timeFrame = "1m", limit = 120, ti
     let cancelled = false;
     const url = `${API}/candles/${encodeURIComponent(symbol)}?tf=${tf}&limit=${limit}`;
 
-    fetch(url)
-      .then((response) => response.json())
-      .then((arr: Candle[]) => {
-        if (!cancelled) {
+    // For non-intraday timeframes, retry if data comes back empty —
+    // historical data may still be loading after a new symbol is added.
+    const isHistorical = tf === "1h" || tf === "1d";
+    const MAX_RETRIES = isHistorical ? 5 : 0;
+    const RETRY_DELAY_MS = 5000;
+    let retries = 0;
+
+    async function loadCandles() {
+      while (!cancelled) {
+        try {
+          const res = await fetch(url);
+          const arr = await res.json();
+          if (cancelled) return;
           const data = Array.isArray(arr) ? arr : [];
           if (data.length > 0) {
-            // Only replace state/cache if the server actually returned data.
-            // An empty response (market closed, no rows yet) should not wipe
-            // candles that were already built from live ticks.
             candleCache.set(cacheKey, data);
             setCandles(data);
+            return;
           }
+          // Empty — retry if allowed
+          if (retries < MAX_RETRIES) {
+            retries++;
+            await new Promise((r) => setTimeout(r, RETRY_DELAY_MS));
+          } else {
+            return;
+          }
+        } catch {
+          return;
         }
-      })
-      .catch(() => {
-        // Network / parse error — don't wipe existing data.
-      });
+      }
+    }
+
+    loadCandles();
 
     return () => {
       cancelled = true;
