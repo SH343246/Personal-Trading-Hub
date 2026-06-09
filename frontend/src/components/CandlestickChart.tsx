@@ -408,7 +408,10 @@ export function CandlestickChart({ candles, tick, apiTf, height = 320 }: Props) 
 
   // ── Live tick ────────────────────────────────────────────────────────────
   useEffect(() => {
-    if (!seriesRef.current || !tick || candles.length === 0) return;
+    // Daily bars use BusinessDay objects internally in lightweight-charts —
+    // calling update() with a Unix timestamp causes a type mismatch crash.
+    // Live tick updates on a daily chart aren't meaningful anyway.
+    if (!seriesRef.current || !tick || candles.length === 0 || apiTf === "1d") return;
 
     const rawTs    = typeof tick.event_ts === "number" ? tick.event_ts : Date.parse(tick.event_ts as string);
     const tsMs     = rawTs < 1e12 ? rawTs * 1000 : rawTs;
