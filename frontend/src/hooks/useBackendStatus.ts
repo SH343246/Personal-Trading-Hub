@@ -14,7 +14,7 @@ import { API_BASE } from "../config";
 
 const HEALTH_URL   = `${API_BASE}/health`;
 const POLL_MS      = 20_000;
-const TIMEOUT_MS   = 4_000;
+const TIMEOUT_MS   = 10_000;
 
 export type BackendStatus = "checking" | "online" | "offline";
 
