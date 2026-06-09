@@ -76,24 +76,37 @@ class Hub:
             print("[Hub] snapshot provider error:", repr(e))
 
     async def ensure_subscription(self, symbol: str):
-        if symbol in self.tasks:
+        # Restart if task is missing or has died
+        task = self.tasks.get(symbol)
+        if task and not task.done():
             return
         async def run():
-            pubsub = self.redis.pubsub()
-            await pubsub.subscribe(f"ticks:{symbol}")
-            try:
-                async for msg in pubsub.listen():
-                    if msg and msg.get("type") == "message":
-                        data = msg.get("data")
-                        conns = list(self.active.get(symbol, []))
-                        for ws in conns:
-                            try:
-                                await ws.send_text(data)
-                            except:
-                                pass
-            finally:
-                await pubsub.unsubscribe(f"ticks:{symbol}")
-                await pubsub.close()
+            while True:  # reconnect loop
+                pubsub = self.redis.pubsub()
+                try:
+                    await pubsub.subscribe(f"ticks:{symbol}")
+                    async for msg in pubsub.listen():
+                        if msg and msg.get("type") == "message":
+                            data = msg.get("data")
+                            conns = list(self.active.get(symbol, []))
+                            for ws in conns:
+                                try:
+                                    await ws.send_text(data)
+                                except:
+                                    pass
+                except Exception as e:
+                    print(f"[Hub] pubsub error for {symbol}, reconnecting: {repr(e)}")
+                finally:
+                    try:
+                        await pubsub.unsubscribe(f"ticks:{symbol}")
+                        await pubsub.aclose()
+                    except:
+                        pass
+                # No active clients — stop the loop
+                if not self.active.get(symbol):
+                    self.tasks.pop(symbol, None)
+                    return
+                await asyncio.sleep(2)  # brief pause before reconnect
         self.tasks[symbol] = asyncio.create_task(run())
 
     async def connect(self, symbol: str, ws: WebSocket):
