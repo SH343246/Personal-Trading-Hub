@@ -102,28 +102,31 @@ def seed_symbol(symbol: str = Query(...), db: Session = Depends(get_db)):
                 )
             bars_5m = len(df_5m)
 
-        # --- Publish latest tick ---
-        if not df_1m.empty:
-            latest = df_1m.iloc[-1]
-            latest_ts = _to_utc(df_1m.index[-1].to_pydatetime())
-            ts_ms = int(latest_ts.timestamp() * 1000)
-            payload = {
-                "symbol": sym,
-                "price":  float(latest["Close"]),
-                "volume": 0 if math.isnan(latest["Volume"]) else int(latest["Volume"]),
-                "event_ts": ts_ms,
-                "newTickTimestamp": ts_ms,
-            }
-            _redis.set(f"tick:{sym}", json.dumps(payload))
-            _redis.publish(f"ticks:{sym}", json.dumps(payload))
+        # --- Publish latest tick (Redis errors must not abort the DB writes) ---
+        try:
+            if not df_1m.empty:
+                latest = df_1m.iloc[-1]
+                latest_ts = _to_utc(df_1m.index[-1].to_pydatetime())
+                ts_ms = int(latest_ts.timestamp() * 1000)
+                payload = {
+                    "symbol": sym,
+                    "price":  float(latest["Close"]),
+                    "volume": 0 if math.isnan(latest["Volume"]) else int(latest["Volume"]),
+                    "event_ts": ts_ms,
+                    "newTickTimestamp": ts_ms,
+                }
+                _redis.set(f"tick:{sym}", json.dumps(payload))
+                _redis.publish(f"ticks:{sym}", json.dumps(payload))
+            _redis.sadd(WATCHED_KEY, sym)
+        except Exception as redis_err:
+            print(f"[seed] Redis error (non-fatal): {redis_err}")
 
-        # --- Register for ongoing Celery updates ---
-        _redis.sadd(WATCHED_KEY, sym)
-
-        # Kick off a historical backfill so 1H and 1D charts are populated
-        # immediately rather than waiting for the nightly scheduled run.
-        from app.worker.tasks import fetch_historical
-        fetch_historical.delay()
+        # Kick off historical backfill for 1H/1D charts
+        try:
+            from app.worker.tasks import fetch_historical
+            fetch_historical.delay()
+        except Exception:
+            pass
 
         return {"status": "ok", "symbol": sym, "bars_1m": bars_1m, "bars_5m": bars_5m}
 

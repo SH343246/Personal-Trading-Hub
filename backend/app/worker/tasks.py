@@ -45,16 +45,21 @@ def _to_utc(dt: datetime) -> datetime:
 @app.task(name="fetch_ticks")
 def fetch_ticks():
     """
-    Fast tick-only update using fast_info — one lightweight API call per symbol.
-    Publishes latest price to Redis so WebSocket clients get near-real-time updates.
-    Runs every FETCH_INTERVAL_SECONDS (default 30s).
+    Fast tick update — fetches the last 2 minutes of 1m bars to get the
+    latest completed bar price. Much faster than fetching a full day.
     """
-    ts_ms = int(datetime.now(timezone.utc).timestamp() * 1000)
+    start = datetime.now(timezone.utc) - timedelta(minutes=3)
     for symbol in _get_symbols():
         try:
-            info = yfinance.Ticker(symbol).fast_info
-            price = float(info.last_price)
-            volume = int(info.three_month_average_volume or 0)
+            ticker = yfinance.Ticker(symbol)
+            df = ticker.history(start=start, interval="1m")
+            if df.empty:
+                continue
+            latest = df.iloc[-1]
+            latest_ts = _to_utc(df.index[-1].to_pydatetime())
+            price = float(latest["Close"])
+            volume = 0 if math.isnan(latest["Volume"]) else int(latest["Volume"])
+            ts_ms = int(latest_ts.timestamp() * 1000)
             payload = {
                 "symbol": symbol,
                 "price":  price,

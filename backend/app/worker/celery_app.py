@@ -13,22 +13,22 @@ from app.worker import tasks
 
 app.conf.timezone = "UTC"
 app.conf.enable_utc = True
-app.conf.worker_concurrency = 2
+app.conf.worker_concurrency = 1  # single worker prevents duplicate task execution
 
 # Upstash uses rediss:// (TLS) — skip cert verification since we trust the URL
 if BROKER_URL.startswith("rediss://"):
     app.conf.broker_use_ssl = {"ssl_cert_reqs": ssl.CERT_NONE}
 
 app.conf.beat_schedule = {
-    # Fast tick updates via fast_info — lightweight, runs every 15s
+    # Fast tick updates — runs every 20s
     "fetch-ticks": {
         "task": "fetch_ticks",
-        "schedule": 15,
+        "schedule": 20,
     },
-    # OHLCV candle refresh — now fast (only last 10 min of bars), runs every 30s
+    # OHLCV candle refresh — takes ~35s, so run every 60s to prevent queue buildup
     "fetch-prices": {
         "task": "fetch_price_batch",
-        "schedule": INTERVAL,
+        "schedule": 60,
     },
     # Historical backfill — runs once daily at 6 PM UTC (after US market close)
     # Keeps 1h and 1d tables fresh with the latest completed bars.
