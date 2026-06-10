@@ -140,10 +140,10 @@ def seed_symbol(symbol: str = Query(...), db: Session = Depends(get_db)):
         except Exception as e:
             print(f"[seed] 1h fetch error for {sym} (non-fatal): {e}")
 
-        # --- Daily bars (max history) — done inline so 1W/1M/1Y/Max charts work immediately ---
+        # --- Daily bars (5 years) — covers 1W/1M/1Y/Max tabs; avoids timeout on huge inserts ---
         bars_1d = 0
         try:
-            df_1d = ticker.history(period="max", interval="1d")
+            df_1d = ticker.history(period="5y", interval="1d")
             for ts_idx, row in df_1d.iterrows():
                 bucket = _to_utc(ts_idx.to_pydatetime().replace(hour=0, minute=0, second=0, microsecond=0))
                 vol = 0 if math.isnan(row["Volume"]) else int(row["Volume"])

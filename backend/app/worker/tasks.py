@@ -184,8 +184,8 @@ def fetch_historical():
                         vol,
                     )
 
-                # --- Daily bars (all available history) ---
-                df_1d = ticker.history(period="max", interval="1d")
+                # --- Daily bars (5 years) — avoids timeout on huge history fetches ---
+                df_1d = ticker.history(period="5y", interval="1d")
                 for ts_idx, row in df_1d.iterrows():
                     bucket = _to_utc(ts_idx.to_pydatetime().replace(hour=0, minute=0, second=0, microsecond=0))
                     vol = 0 if math.isnan(row["Volume"]) else int(row["Volume"])
