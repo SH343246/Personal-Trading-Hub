@@ -10,7 +10,7 @@ from fastapi import APIRouter, Query, Depends
 from sqlalchemy.orm import Session
 
 from app.deps import get_db
-from app.models1.models import Candle1m, Candle5m
+from app.models1.models import Candle1m, Candle5m, Candle1h, Candle1d
 from app.db.repository import upsert_candle_ohlcv
 
 router = APIRouter()
@@ -121,14 +121,45 @@ def seed_symbol(symbol: str = Query(...), db: Session = Depends(get_db)):
         except Exception as redis_err:
             print(f"[seed] Redis error (non-fatal): {redis_err}")
 
-        # Kick off historical backfill for 1H/1D charts
+        # --- 1-hour bars (last 60 days) — done inline so data is ready immediately ---
+        bars_1h = 0
         try:
-            from app.worker.tasks import fetch_historical
-            fetch_historical.delay()
-        except Exception:
-            pass
+            df_1h = ticker.history(period="60d", interval="1h")
+            for ts_idx, row in df_1h.iterrows():
+                bucket = _to_utc(ts_idx.to_pydatetime().replace(minute=0, second=0, microsecond=0))
+                vol = 0 if math.isnan(row["Volume"]) else int(row["Volume"])
+                upsert_candle_ohlcv(
+                    db, Candle1h, sym, bucket,
+                    Decimal(str(row["Open"])),
+                    Decimal(str(row["High"])),
+                    Decimal(str(row["Low"])),
+                    Decimal(str(row["Close"])),
+                    vol,
+                )
+            bars_1h = len(df_1h)
+        except Exception as e:
+            print(f"[seed] 1h fetch error for {sym} (non-fatal): {e}")
 
-        return {"status": "ok", "symbol": sym, "bars_1m": bars_1m, "bars_5m": bars_5m}
+        # --- Daily bars (max history) — done inline so 1W/1M/1Y/Max charts work immediately ---
+        bars_1d = 0
+        try:
+            df_1d = ticker.history(period="max", interval="1d")
+            for ts_idx, row in df_1d.iterrows():
+                bucket = _to_utc(ts_idx.to_pydatetime().replace(hour=0, minute=0, second=0, microsecond=0))
+                vol = 0 if math.isnan(row["Volume"]) else int(row["Volume"])
+                upsert_candle_ohlcv(
+                    db, Candle1d, sym, bucket,
+                    Decimal(str(row["Open"])),
+                    Decimal(str(row["High"])),
+                    Decimal(str(row["Low"])),
+                    Decimal(str(row["Close"])),
+                    vol,
+                )
+            bars_1d = len(df_1d)
+        except Exception as e:
+            print(f"[seed] 1d fetch error for {sym} (non-fatal): {e}")
+
+        return {"status": "ok", "symbol": sym, "bars_1m": bars_1m, "bars_5m": bars_5m, "bars_1h": bars_1h, "bars_1d": bars_1d}
 
     except Exception as e:
         return {"status": "error", "symbol": sym, "error": str(e)}
