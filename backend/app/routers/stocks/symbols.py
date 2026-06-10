@@ -122,12 +122,14 @@ def seed_symbol(symbol: str = Query(...), db: Session = Depends(get_db)):
             print(f"[seed] Redis error (non-fatal): {redis_err}")
 
         # --- 1-hour bars (last 60 days) — done inline so data is ready immediately ---
+        # Batch commits every 100 rows to avoid per-row Neon round trips timing out.
         bars_1h = 0
         try:
             df_1h = ticker.history(period="60d", interval="1h")
-            for ts_idx, row in df_1h.iterrows():
+            for i, (ts_idx, row) in enumerate(df_1h.iterrows()):
                 bucket = _to_utc(ts_idx.to_pydatetime().replace(minute=0, second=0, microsecond=0))
                 vol = 0 if math.isnan(row["Volume"]) else int(row["Volume"])
+                is_last = (i == len(df_1h) - 1)
                 upsert_candle_ohlcv(
                     db, Candle1h, sym, bucket,
                     Decimal(str(row["Open"])),
@@ -135,18 +137,22 @@ def seed_symbol(symbol: str = Query(...), db: Session = Depends(get_db)):
                     Decimal(str(row["Low"])),
                     Decimal(str(row["Close"])),
                     vol,
+                    commit=((i + 1) % 100 == 0 or is_last),
                 )
             bars_1h = len(df_1h)
         except Exception as e:
             print(f"[seed] 1h fetch error for {sym} (non-fatal): {e}")
 
-        # --- Daily bars (5 years) — covers 1W/1M/1Y/Max tabs; avoids timeout on huge inserts ---
+        # --- Daily bars (5 years) — covers 1W/1M/1Y/Max tabs ---
+        # Batch commits every 100 rows — 1260 rows × 50ms/commit = 63s without batching,
+        # ~600ms with batching. Prevents Railway HTTP timeout killing the request.
         bars_1d = 0
         try:
             df_1d = ticker.history(period="5y", interval="1d")
-            for ts_idx, row in df_1d.iterrows():
+            for i, (ts_idx, row) in enumerate(df_1d.iterrows()):
                 bucket = _to_utc(ts_idx.to_pydatetime().replace(hour=0, minute=0, second=0, microsecond=0))
                 vol = 0 if math.isnan(row["Volume"]) else int(row["Volume"])
+                is_last = (i == len(df_1d) - 1)
                 upsert_candle_ohlcv(
                     db, Candle1d, sym, bucket,
                     Decimal(str(row["Open"])),
@@ -154,6 +160,7 @@ def seed_symbol(symbol: str = Query(...), db: Session = Depends(get_db)):
                     Decimal(str(row["Low"])),
                     Decimal(str(row["Close"])),
                     vol,
+                    commit=((i + 1) % 100 == 0 or is_last),
                 )
             bars_1d = len(df_1d)
         except Exception as e:
