@@ -57,4 +57,7 @@ def run_historical_on_startup(sender, **kwargs):
 
     tasks.fetch_ticks.delay()
     tasks.fetch_price_batch.delay()
-    tasks.fetch_historical.delay()
+    # fetch_historical is NOT run on startup — it takes 15+ min for all symbols
+    # and blocks fetch_ticks/fetch_price_batch the entire time.
+    # It runs once daily at 6 PM UTC via the beat crontab instead.
+    # New symbols get their historical data inline via the /symbols/seed endpoint.
