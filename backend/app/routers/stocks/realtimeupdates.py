@@ -62,18 +62,25 @@ async def ws_ticks(ws: WebSocket, symbol: str):
         except:
             return
 
-    # Poll Redis every POLL_INTERVAL seconds and push any new price
+    # Poll Redis every POLL_INTERVAL seconds and push any new price.
+    # IMPORTANT: only catch Redis errors in the inner block — let send errors
+    # (WebSocketDisconnect, "close message" RuntimeError) propagate to the
+    # outer except so the loop exits cleanly instead of running forever on a
+    # dead connection.
     last_sent = snap
     try:
         while True:
             await asyncio.sleep(POLL_INTERVAL)
+            # Redis fetch — non-fatal, keep polling if Redis hiccups
             try:
                 r = await get_redis()
                 data = await r.get(f"tick:{s}")
-                if data and data != last_sent:
-                    await ws.send_text(data)
-                    last_sent = data
             except Exception as e:
-                print(f"[WS] poll error for {s}: {repr(e)}")
+                print(f"[WS] Redis error for {s}: {repr(e)}")
+                continue
+            # Send — fatal if the connection is gone; outer except exits the loop
+            if data and data != last_sent:
+                await ws.send_text(data)
+                last_sent = data
     except (WebSocketDisconnect, Exception):
-        pass
+        pass  # Connection closed — exit cleanly, no zombie loop
