@@ -7,3 +7,4 @@ Tasks: Celery (Redis broker), fetch jobs
 Database: Postgres
 Frontend: React + TypeScript
 
+![Backtest](Backtest.gif)
