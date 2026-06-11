@@ -8,3 +8,7 @@ Database: Postgres
 Frontend: React + TypeScript
 
 ![Backtest](Backtest.gif)
+![SMA, EMA, and BB curves shown](SMAEMABB.gif)
+![Timeline (1H, 1W, 1M, 1Y, and Max) shown for a stock](timelineshow.gif)
+![Shows the real-time price update of a stock](Stock Price Update.gif)
+
