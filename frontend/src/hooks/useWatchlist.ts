@@ -81,27 +81,26 @@ export function useWatchlist() {
         return { ok: false, error: msg };
       }
 
-      // Step 2: backfill today's candles + register for ongoing Celery updates.
-      // We AWAIT this so that by the time setFocusedSymbol fires and useCandles
-      // runs its REST fetch, the DB already has today's bars populated.
-      try {
-        await fetch(`${base}/api/symbols/seed?symbol=${encodeURIComponent(data.symbol)}`, {
-          method: "POST",
-        });
-      } catch {
-        // Seed failed (network/backend error) — still add to watchlist.
-        // Data will appear on the next Celery fetch cycle.
-      }
-
+      // Add to watchlist immediately — don't wait for seed.
+      // On Railway, seed takes 30-60s (yfinance + Neon inserts); awaiting it
+      // made the spinner hang that long before the symbol appeared in the list.
       setSymbols((prev) => {
         const next = [...prev, data.symbol];
         saveToStorage(next);
         return next;
       });
+
       // Mark as seeded so the startup effect doesn't re-seed it
       const seeded = new Set<string>(JSON.parse(localStorage.getItem(SEEDED_KEY) ?? "[]"));
       seeded.add(data.symbol);
       localStorage.setItem(SEEDED_KEY, JSON.stringify([...seeded]));
+
+      // Fire seed in the background — 1m/5m/1h/1d history + Redis registration.
+      // Historical tabs will show a loading indicator until the DB is populated.
+      fetch(`${base}/api/symbols/seed?symbol=${encodeURIComponent(data.symbol)}`, {
+        method: "POST",
+      }).catch(() => {}); // silently ignore — Celery will backfill on next cycle
+
       return { ok: true, symbol: data.symbol, price: data.price };
     } catch (e) {
       const msg = "Network error — try again";

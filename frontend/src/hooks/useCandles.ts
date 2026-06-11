@@ -66,6 +66,8 @@ export function getSessionOpen(symbol: string, tf: timeFrame = "1m"): number | n
 export function useCandles(symbol: string, tf: timeFrame = "1m", limit = 120, tick?: Tick) {
   const cacheKey = `${symbol}:${tf}`;
   const [candles, setCandles] = useState<Candle[]>(candleCache.get(cacheKey) ?? []);
+  // Start loading=true only when there's no cached data to show immediately
+  const [loading, setLoading] = useState<boolean>((candleCache.get(cacheKey) ?? []).length === 0);
 
   // Only allow tick merging once the server has confirmed real data exists for
   // this symbol+timeframe. Prevents phantom candles being built from live ticks
@@ -80,6 +82,7 @@ export function useCandles(symbol: string, tf: timeFrame = "1m", limit = 120, ti
     setPrevCacheKey(cacheKey);
     const cached = candleCache.get(cacheKey) ?? [];
     hasServerData.current = cached.length > 0;
+    setLoading(cached.length === 0);
     setCandles(cached);
   }
 
@@ -92,6 +95,7 @@ export function useCandles(symbol: string, tf: timeFrame = "1m", limit = 120, ti
       .then((arr: Candle[]) => {
         if (!cancelled) {
           const data = Array.isArray(arr) ? arr : [];
+          setLoading(false);
           if (data.length > 0) {
             // Only replace state/cache if the server actually returned data.
             // An empty response (market closed, no rows yet) should not wipe
@@ -103,6 +107,7 @@ export function useCandles(symbol: string, tf: timeFrame = "1m", limit = 120, ti
         }
       })
       .catch(() => {
+        if (!cancelled) setLoading(false);
         // Network / parse error — don't wipe existing data.
       });
 
@@ -182,5 +187,5 @@ const bucketStart = floorTs(timestampInMilliseconds, tf);
     });
   }, [tick, tf, limit]);
 
-  return { candles };
+  return { candles, loading };
 }
