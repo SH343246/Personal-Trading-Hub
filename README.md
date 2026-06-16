@@ -3,7 +3,7 @@
 
 A self-hosted stock dashboard with real-time price feeds, candlestick charts, paper trading, and backtesting; deployed to Railway and Vercel.
 
-**Live demo:** [[https://your-frontend-url.vercel.app](https://personal-trading-hub-frontend.vercel.app/dashboard)](https://personal-trading-hub-frontend.vercel.app/dashboard)
+**Live demo:** [(https://personal-trading-hub-frontend.vercel.app/dashboard)](https://personal-trading-hub-frontend.vercel.app/dashboard)
 
 ---
 
