@@ -1,4 +1,5 @@
 import os
+import ssl
 from celery import Celery
 from celery.schedules import crontab
 from dotenv import load_dotenv
@@ -12,12 +13,22 @@ from app.worker import tasks
 
 app.conf.timezone = "UTC"
 app.conf.enable_utc = True
+app.conf.worker_concurrency = 1  # single worker prevents duplicate task execution
+
+# Upstash uses rediss:// (TLS) — skip cert verification since we trust the URL
+if BROKER_URL.startswith("rediss://"):
+    app.conf.broker_use_ssl = {"ssl_cert_reqs": ssl.CERT_NONE}
 
 app.conf.beat_schedule = {
-    # Intraday OHLCV — runs every 30s during market hours
+    # Fast tick updates — runs every 20s
+    "fetch-ticks": {
+        "task": "fetch_ticks",
+        "schedule": 20,
+    },
+    # OHLCV candle refresh — takes ~35s, so run every 60s to prevent queue buildup
     "fetch-prices": {
         "task": "fetch_price_batch",
-        "schedule": INTERVAL,
+        "schedule": 60,
     },
     # Historical backfill — runs once daily at 6 PM UTC (after US market close)
     # Keeps 1h and 1d tables fresh with the latest completed bars.
@@ -28,8 +39,25 @@ app.conf.beat_schedule = {
 }
 
 
+DEFAULT_SYMBOLS = ["AAPL", "MSFT", "NVDA", "AMZN", "TSLA"]
+
 @app.on_after_finalize.connect
 def run_historical_on_startup(sender, **kwargs):
-    """Kick off a historical backfill immediately when the worker starts up
-    so the 1H and 1D charts have data without waiting until 6 PM."""
-    tasks.fetch_historical.delay()
+    """On worker start: seed default symbols into Redis if watched_symbols is
+    empty, then kick off a full historical backfill and an immediate price fetch."""
+    try:
+        watched = tasks.r.smembers("watched_symbols")
+        if not watched:
+            seeds = [s for s in DEFAULT_SYMBOLS if s not in (tasks._ENV_SYMBOLS or [])]
+            if seeds:
+                tasks.r.sadd("watched_symbols", *seeds)
+                print(f"[startup] seeded watched_symbols with {seeds}")
+    except Exception as e:
+        print(f"[startup] could not seed watched_symbols: {e}")
+
+    tasks.fetch_ticks.delay()
+    tasks.fetch_price_batch.delay()
+    # fetch_historical is NOT run on startup — it takes 15+ min for all symbols
+    # and blocks fetch_ticks/fetch_price_batch the entire time.
+    # It runs once daily at 6 PM UTC via the beat crontab instead.
+    # New symbols get their historical data inline via the /symbols/seed endpoint.

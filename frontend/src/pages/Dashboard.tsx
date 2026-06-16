@@ -205,7 +205,7 @@ export default function Dashboard() {
 
   const { apiTf, limit, label: tfLabel } = TF_CONFIG[tf];
   const tick: Tick | null = useTicker(focusedSymbol);
-  const { candles } = useCandles(focusedSymbol, apiTf, limit, tick ?? undefined);
+  const { candles, loading: candlesLoading } = useCandles(focusedSymbol, apiTf, limit, tick ?? undefined);
 
   const priceLabel = typeof tick?.price === "number" ? tick.price.toFixed(2) : "—";
 
@@ -255,7 +255,23 @@ export default function Dashboard() {
                 ) : null}
               </Group>
 
-              <CandlestickChart candles={candles} tick={tick} apiTf={apiTf} height={280} />
+              {candlesLoading ? (
+                <div style={{ height: 280, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12 }}>
+                  <Loader size="md" />
+                  <Text c="dimmed" fz="sm">Loading chart data…</Text>
+                </div>
+              ) : candles.length === 0 && apiTf === "1d" ? (
+                <div style={{ height: 280, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 8 }}>
+                  <Text c="dimmed" fz="sm" ta="center">
+                    Historical data is being loaded in the background.
+                  </Text>
+                  <Text c="dimmed" fz="xs" ta="center">
+                    This can take up to 60 seconds for a newly added symbol. Refresh the page to check.
+                  </Text>
+                </div>
+              ) : (
+                <CandlestickChart candles={candles} tick={tick} apiTf={apiTf} height={280} />
+              )}
             </Card>
 
             <Grid gutter="md" align="stretch">

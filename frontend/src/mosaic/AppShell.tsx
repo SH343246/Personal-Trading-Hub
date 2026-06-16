@@ -482,7 +482,7 @@ export default function AppShell({ sidebarOpen, setSidebarOpen, children }: Prop
                 d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
             </svg>
             <span>
-              <strong>Backend offline</strong> — prices and portfolio data won't update. Make sure uvicorn is running on port 8001.
+              <strong>Backend offline</strong> — prices and portfolio data won't update. The server may be starting up, please wait a moment.
             </span>
           </div>
         )}

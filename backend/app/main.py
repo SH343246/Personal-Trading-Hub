@@ -63,5 +63,5 @@ def on_startup():
     Base.metadata.create_all(bind=SessionLocal().bind)
 
 @app.get("/health")
-def health(db: Session = Depends(get_db)):
-    return {"users_count": db.query(User).count()}
+def health():
+    return {"status": "ok"}

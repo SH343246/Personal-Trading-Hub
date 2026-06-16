@@ -5,14 +5,16 @@ from .celery_app import app
 from app.config import SessionLocal
 from app.models1.models import Candle1m, Candle5m, Candle1h, Candle1d
 from app.db.repository import insert_tick, upsert_candle_ohlcv
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 import json
 import redis
 import yfinance
 
 
+import ssl as _ssl
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
-r = redis.Redis.from_url(REDIS_URL, decode_responses=True)
+_redis_ssl = {"ssl_cert_reqs": _ssl.CERT_NONE} if REDIS_URL.startswith("rediss://") else {}
+r = redis.Redis.from_url(REDIS_URL, decode_responses=True, **_redis_ssl)
 
 
 @app.task(name="ping")
@@ -40,12 +42,46 @@ def _to_utc(dt: datetime) -> datetime:
     return dt.astimezone(timezone.utc)
 
 
+@app.task(name="fetch_ticks")
+def fetch_ticks():
+    """
+    Fast tick update — fetches the last 2 minutes of 1m bars to get the
+    latest completed bar price. Much faster than fetching a full day.
+    """
+    start = datetime.now(timezone.utc) - timedelta(minutes=3)
+    for symbol in _get_symbols():
+        try:
+            ticker = yfinance.Ticker(symbol)
+            df = ticker.history(start=start, interval="1m")
+            if df.empty:
+                continue
+            latest = df.iloc[-1]
+            latest_ts = _to_utc(df.index[-1].to_pydatetime())
+            price = float(latest["Close"])
+            volume = 0 if math.isnan(latest["Volume"]) else int(latest["Volume"])
+            ts_ms = int(latest_ts.timestamp() * 1000)
+            payload = {
+                "symbol": symbol,
+                "price":  price,
+                "volume": volume,
+                "event_ts": ts_ms,
+                "newTickTimestamp": ts_ms,
+            }
+            r.set(f"tick:{symbol}", json.dumps(payload))
+            r.publish(f"ticks:{symbol}", json.dumps(payload))
+            print(f"[tick] {symbol} price={price:.2f}")
+        except Exception as e:
+            print(f"[fetch_ticks] {symbol} error: {e}")
+
+    return {"status": "ok", "symbols": _get_symbols()}
+
+
 @app.task(name="fetch_price_batch")
 def fetch_price_batch():
     """
-    Fetch real OHLCV bars from Yahoo Finance history for each symbol and
-    upsert them into the DB.  Using history() gives us proper open/high/low/close
-    and real per-bar volume — much better than polling fast_info every 30s.
+    Full OHLCV candle update via history() — runs every FETCH_INTERVAL_SECONDS
+    to keep 1m and 5m candle tables fresh. Slower than fetch_ticks but gives
+    proper OHLCV bars for the chart.
     """
     db = SessionLocal()
     try:
@@ -53,8 +89,13 @@ def fetch_price_batch():
             try:
                 ticker = yfinance.Ticker(symbol)
 
-                # --- 1-minute bars (today only) ---
-                df_1m = ticker.history(period="1d", interval="1m")
+                # Only fetch the last 10 minutes — much faster than period="1d"
+                now_utc = datetime.now(timezone.utc)
+                start_1m = now_utc - timedelta(minutes=10)
+                start_5m = now_utc - timedelta(minutes=30)
+
+                # --- 1-minute bars (last 10 min) ---
+                df_1m = ticker.history(start=start_1m, interval="1m")
                 if df_1m.empty:
                     print(f"[fetch] {symbol}: no 1m history returned")
                     continue
@@ -71,8 +112,8 @@ def fetch_price_batch():
                         vol,
                     )
 
-                # --- 5-minute bars (today only) ---
-                df_5m = ticker.history(period="1d", interval="5m")
+                # --- 5-minute bars (last 30 min) ---
+                df_5m = ticker.history(start=start_5m, interval="5m")
                 for ts_idx, row in df_5m.iterrows():
                     bucket = _to_utc(ts_idx.to_pydatetime().replace(second=0, microsecond=0))
                     vol = 0 if math.isnan(row["Volume"]) else int(row["Volume"])
@@ -85,13 +126,12 @@ def fetch_price_batch():
                         vol,
                     )
 
-                # --- Publish latest close as WebSocket tick ---
+                # Also publish tick from latest 1m bar
                 latest = df_1m.iloc[-1]
                 latest_ts = _to_utc(df_1m.index[-1].to_pydatetime())
                 latest_price = float(latest["Close"])
                 latest_vol   = 0 if math.isnan(latest["Volume"]) else int(latest["Volume"])
                 ts_ms = int(latest_ts.timestamp() * 1000)
-
                 payload = {
                     "symbol": symbol,
                     "price":  latest_price,
@@ -130,11 +170,12 @@ def fetch_historical():
             try:
                 ticker = yfinance.Ticker(symbol)
 
-                # --- Hourly bars (last 60 days) ---
+                # --- Hourly bars (last 60 days) — batch commits every 100 rows ---
                 df_1h = ticker.history(period="60d", interval="1h")
-                for ts_idx, row in df_1h.iterrows():
+                for i, (ts_idx, row) in enumerate(df_1h.iterrows()):
                     bucket = _to_utc(ts_idx.to_pydatetime().replace(minute=0, second=0, microsecond=0))
                     vol = 0 if math.isnan(row["Volume"]) else int(row["Volume"])
+                    is_last = (i == len(df_1h) - 1)
                     upsert_candle_ohlcv(
                         db, Candle1h, symbol, bucket,
                         Decimal(str(row["Open"])),
@@ -142,13 +183,15 @@ def fetch_historical():
                         Decimal(str(row["Low"])),
                         Decimal(str(row["Close"])),
                         vol,
+                        commit=((i + 1) % 100 == 0 or is_last),
                     )
 
-                # --- Daily bars (all available history) ---
-                df_1d = ticker.history(period="max", interval="1d")
-                for ts_idx, row in df_1d.iterrows():
+                # --- Daily bars (5 years) — batch commits every 100 rows ---
+                df_1d = ticker.history(period="5y", interval="1d")
+                for i, (ts_idx, row) in enumerate(df_1d.iterrows()):
                     bucket = _to_utc(ts_idx.to_pydatetime().replace(hour=0, minute=0, second=0, microsecond=0))
                     vol = 0 if math.isnan(row["Volume"]) else int(row["Volume"])
+                    is_last = (i == len(df_1d) - 1)
                     upsert_candle_ohlcv(
                         db, Candle1d, symbol, bucket,
                         Decimal(str(row["Open"])),
@@ -156,6 +199,7 @@ def fetch_historical():
                         Decimal(str(row["Low"])),
                         Decimal(str(row["Close"])),
                         vol,
+                        commit=((i + 1) % 100 == 0 or is_last),
                     )
 
                 print(f"[historical] {symbol}  1h_bars={len(df_1h)}  1d_bars={len(df_1d)}")

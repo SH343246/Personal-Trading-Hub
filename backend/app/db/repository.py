@@ -59,12 +59,16 @@ def upsert_candle_5m(db, symbol, bucket_start, price: Decimal, volume=None):
     db.commit()
 
 def upsert_candle_ohlcv(db, table, symbol: str, bucket_start, open_: Decimal,
-                         high: Decimal, low: Decimal, close: Decimal, volume: int):
+                         high: Decimal, low: Decimal, close: Decimal, volume: int,
+                         commit: bool = True):
     """
     Upsert a full OHLCV bar from Yahoo Finance history data.
     On conflict: keep the existing open (first trade of the minute stays),
     expand high/low if Yahoo gives a wider range, and always use Yahoo's
     volume directly (it's already a real per-bar figure, not cumulative).
+
+    Set commit=False when bulk-inserting many rows — caller is responsible
+    for calling db.commit() after the batch to avoid per-row network round trips.
     """
     stmt = insert(table.__table__).values(
         symbol=symbol.upper(),
@@ -82,7 +86,8 @@ def upsert_candle_ohlcv(db, table, symbol: str, bucket_start, open_: Decimal,
         }
     )
     db.execute(stmt)
-    db.commit()
+    if commit:
+        db.commit()
 
 def get_latest_tick(db, symbol):
     return (

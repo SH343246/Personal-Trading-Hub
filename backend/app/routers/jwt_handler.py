@@ -1,18 +1,15 @@
 import os
-from pathlib import Path
 from datetime import datetime, timedelta, timezone
 from typing import Dict, Any
 from jose import jwt, JWTError
-from dotenv import load_dotenv, dotenv_values
 
-DOTENV_PATH = load_dotenv() 
-load_dotenv(DOTENV_PATH)
-SECRET_KEY = os.getenv("SECRET_KEY") or os.getenv("JWT_SECRET")
+# In production (Railway) these come from env vars set in the dashboard.
+# In local dev they come from the .env file loaded in main.py.
+SECRET_KEY = os.getenv("SECRET_KEY") or os.getenv("JWT_SECRET") or os.getenv("SESSION_SECRET")
 if not SECRET_KEY:
-    available = ", ".join(dotenv_values(DOTENV_PATH).keys())
     raise RuntimeError(
-        f"Can not find secret key. .env checked at: {DOTENV_PATH}\n"
-        f".env contains: {available or '[empty]'}"
+        "SECRET_KEY / JWT_SECRET / SESSION_SECRET env var is not set. "
+        "Add it to Railway environment variables."
     )
 ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256")
 

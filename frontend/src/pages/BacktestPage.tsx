@@ -132,7 +132,7 @@ export default function BacktestPage() {
                 label="Start date"
                 placeholder="Pick start date"
                 value={startDate}
-                onChange={(d) => { if (d) { reset(); setStartDate(d); persist({ startDate: dayjs(d).format("YYYY-MM-DD") }); } }}
+                onChange={(d) => { if (d) { reset(); setStartDate(d as unknown as Date); persist({ startDate: dayjs(d as unknown as Date).format("YYYY-MM-DD") }); } }}
                 maxDate={endDate ?? undefined}
               />
 
@@ -140,7 +140,7 @@ export default function BacktestPage() {
                 label="End date"
                 placeholder="Pick end date"
                 value={endDate}
-                onChange={(d) => { if (d) { reset(); setEndDate(d); persist({ endDate: dayjs(d).format("YYYY-MM-DD") }); } }}
+                onChange={(d) => { if (d) { reset(); setEndDate(d as unknown as Date); persist({ endDate: dayjs(d as unknown as Date).format("YYYY-MM-DD") }); } }}
                 minDate={startDate ?? undefined}
               />
 

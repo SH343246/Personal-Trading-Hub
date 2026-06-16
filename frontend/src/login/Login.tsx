@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../api/axiosinstance";
 import { Link } from "react-router-dom";
+import { API_BASE } from "../config";
 
 export default function Login() {
   const nav = useNavigate();
@@ -23,8 +24,8 @@ export default function Login() {
     }
   }
   function googleLogin() {
-    console.log("google login redirect to", base + "/auth/google");
-    window.location.href = base + "/auth/google";
+    console.log("google login redirect to", API_BASE + "/auth/google");
+    window.location.href = API_BASE + "/auth/google";
   }
 
   return (

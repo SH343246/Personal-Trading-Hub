@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { Candle, Tick } from "../types/types";
 import { API } from "../config";
 
@@ -66,6 +66,13 @@ export function getSessionOpen(symbol: string, tf: timeFrame = "1m"): number | n
 export function useCandles(symbol: string, tf: timeFrame = "1m", limit = 120, tick?: Tick) {
   const cacheKey = `${symbol}:${tf}`;
   const [candles, setCandles] = useState<Candle[]>(candleCache.get(cacheKey) ?? []);
+  // Start loading=true only when there's no cached data to show immediately
+  const [loading, setLoading] = useState<boolean>((candleCache.get(cacheKey) ?? []).length === 0);
+
+  // Only allow tick merging once the server has confirmed real data exists for
+  // this symbol+timeframe. Prevents phantom candles being built from live ticks
+  // when there's no historical data in the DB yet (e.g. 1W/1M/1Y for a new symbol).
+  const hasServerData = useRef<boolean>((candleCache.get(cacheKey) ?? []).length > 0);
 
   // Derived-state reset: when the cacheKey changes (symbol or tf switch), immediately
   // reset candles to the new symbol's cache during render — before any effects fire.
@@ -73,7 +80,10 @@ export function useCandles(symbol: string, tf: timeFrame = "1m", limit = 120, ti
   const [prevCacheKey, setPrevCacheKey] = useState(cacheKey);
   if (prevCacheKey !== cacheKey) {
     setPrevCacheKey(cacheKey);
-    setCandles(candleCache.get(cacheKey) ?? []);
+    const cached = candleCache.get(cacheKey) ?? [];
+    hasServerData.current = cached.length > 0;
+    setLoading(cached.length === 0);
+    setCandles(cached);
   }
 
   useEffect(() => { //if smbl, tf,limit change, refetch
@@ -85,16 +95,19 @@ export function useCandles(symbol: string, tf: timeFrame = "1m", limit = 120, ti
       .then((arr: Candle[]) => {
         if (!cancelled) {
           const data = Array.isArray(arr) ? arr : [];
+          setLoading(false);
           if (data.length > 0) {
             // Only replace state/cache if the server actually returned data.
             // An empty response (market closed, no rows yet) should not wipe
             // candles that were already built from live ticks.
+            hasServerData.current = true;
             candleCache.set(cacheKey, data);
             setCandles(data);
           }
         }
       })
       .catch(() => {
+        if (!cancelled) setLoading(false);
         // Network / parse error — don't wipe existing data.
       });
 
@@ -114,6 +127,10 @@ export function useCandles(symbol: string, tf: timeFrame = "1m", limit = 120, ti
 
   useEffect(() => {
     if (!tick) return;
+    // Don't build phantom candles from live ticks if the server returned no data.
+    // This prevents the 1W/1M/1Y/Max chart from showing garbage when a symbol
+    // has no historical rows in the DB yet.
+    if (!hasServerData.current) return;
 //sec to ms
 const parsed = typeof tick.event_ts === "number"
   ? tick.event_ts
@@ -170,5 +187,5 @@ const bucketStart = floorTs(timestampInMilliseconds, tf);
     });
   }, [tick, tf, limit]);
 
-  return { candles };
+  return { candles, loading };
 }

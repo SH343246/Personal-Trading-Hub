@@ -161,7 +161,7 @@ export function CandlestickChart({ candles, tick, apiTf, height = 320 }: Props) 
     high:   lastCandle.high,
     low:    lastCandle.low,
     close:  tick?.price ?? lastCandle.close,
-    volume: lastCandle.volume,
+    volume: lastCandle.volume ?? null,
   } : null);
 
   function toggle(key: IndicatorKey) {
@@ -232,7 +232,7 @@ export function CandlestickChart({ candles, tick, apiTf, height = 320 }: Props) 
     for (const [key, cfg] of Object.entries(INDICATORS) as [IndicatorKey, typeof INDICATORS[IndicatorKey]][]) {
       newMaRefs[key] = chart.addSeries(LineSeries, {
         color:            cfg.color,
-        lineWidth:        1.5,
+        lineWidth:        2,
         lineStyle:        LineStyle.Solid,
         priceLineVisible: false,
         lastValueVisible: true,
@@ -315,7 +315,13 @@ export function CandlestickChart({ candles, tick, apiTf, height = 320 }: Props) 
 
   // ── Load candle + volume + MA data ───────────────────────────────────────
   useEffect(() => {
-    if (!seriesRef.current || !volRef.current || !chartRef.current || candles.length === 0) return;
+    if (!seriesRef.current || !volRef.current || !chartRef.current) return;
+
+    if (candles.length === 0) {
+      seriesRef.current.setData([]);
+      volRef.current.setData([]);
+      return;
+    }
 
     seriesRef.current.setData(
       candles.map((c) => ({
@@ -402,7 +408,10 @@ export function CandlestickChart({ candles, tick, apiTf, height = 320 }: Props) 
 
   // ── Live tick ────────────────────────────────────────────────────────────
   useEffect(() => {
-    if (!seriesRef.current || !tick || candles.length === 0) return;
+    // Daily bars use BusinessDay objects internally in lightweight-charts —
+    // calling update() with a Unix timestamp causes a type mismatch crash.
+    // Live tick updates on a daily chart aren't meaningful anyway.
+    if (!seriesRef.current || !tick || candles.length === 0 || apiTf === "1d") return;
 
     const rawTs    = typeof tick.event_ts === "number" ? tick.event_ts : Date.parse(tick.event_ts as string);
     const tsMs     = rawTs < 1e12 ? rawTs * 1000 : rawTs;
