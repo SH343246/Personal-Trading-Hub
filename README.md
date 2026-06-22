@@ -72,16 +72,16 @@ graph TD
 
 ## Engineering Challenges
 
-**Database timeout on bulk inserts**
+**Database timeout on bulk inserts:**
 Seeding historical price data for a new symbol meant inserting about 1,260 daily bars into Neon PostgreSQL. By default, each row was committed individually, and every commit triggered roughly a 50 ms round-trip to Neon’s server, which added up to about 63 seconds and went over Railway’s HTTP timeout. I fixed it by batching commits every 100 rows, cutting the round-trips to 13 and reducing the insert time to under a second.
 
-**Celery worker blocking on startup**
+**Celery worker blocking on startup:**
 The worker was automatically instantiating a full historical backfill on startup. Since `worker_concurrency=1`, that backfill took control of the worker for over 15 minutes while processing every watched symbol, which prevented `fetch_ticks` and `fetch_price_batch` from running during that time.
 
 To fix this, I removed the backfill that auto triggers on startup. Historical backfills now run only through the daily scheduled 6 PM UTC job, and any new added symbols are seeded immediately through the `/symbols/seed` endpoint instead.
 
 
-**WebSocket zombie loop on disconnect**
+**WebSocket zombie loop on disconnect:**
 When a client disconnected, the WebSocket handler would continue polling Redis and trying to send updates to a closed connection for basically forever. The issue was that a single `except Exception` block handled both Redis and WebSocket send failures, even though they need to be handled differently.
 
 Redis errors are recoverable and shouldn't stop the polling loop, whereas send failures indicate the client has disconnected. I Separated the exception handling so Redis failures are handled and retried in memory, while send failures kill the handler.
