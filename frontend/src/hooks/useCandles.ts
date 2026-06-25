@@ -4,20 +4,18 @@ import { API } from "../config";
 
 export type timeFrame = "1m" | "5m" | "1h" | "1d";
 
-
+const BACKFILL_POLL_MS = 5000;
+const STALE_THRESHOLD_MS = 5 * 24 * 60 * 60 * 1000;
 
 function floorTs(timestampInMilliseconds: number, tf: timeFrame): number {
   const date = new Date(timestampInMilliseconds);
   if      (tf === "1m") date.setSeconds(0, 0);
   else if (tf === "5m") date.setMinutes(Math.floor(date.getMinutes() / 5) * 5, 0, 0);
   else if (tf === "1h") date.setMinutes(0, 0, 0);
-  else                  date.setHours(0, 0, 0, 0);   // "1d"
+  else                  date.setHours(0, 0, 0, 0);
   return date.getTime();
 }
 
-
-// sessionStorage key — bump the version suffix if the Candle shape ever changes
-// so old serialized data doesn't cause type mismatches.
 const SESSION_KEY = "candleCache_v2";
 
 function loadCacheFromSession(): Map<string, Candle[]> {
@@ -25,7 +23,6 @@ function loadCacheFromSession(): Map<string, Candle[]> {
     const raw = sessionStorage.getItem(SESSION_KEY);
     if (!raw) return new Map();
     const obj = JSON.parse(raw) as Record<string, Candle[]>;
-    // Only restore today's candles — anything from a previous day is stale
     const todayStartMs = new Date().setHours(0, 0, 0, 0);
     const map = new Map<string, Candle[]>();
     for (const [key, candles] of Object.entries(obj)) {
@@ -43,20 +40,17 @@ function saveCacheToSession(cache: Map<string, Candle[]>) {
     const obj: Record<string, Candle[]> = {};
     for (const [k, v] of cache.entries()) obj[k] = v;
     sessionStorage.setItem(SESSION_KEY, JSON.stringify(obj));
-  } catch {
-    // sessionStorage can hit quota limits — silently ignore
-  }
+  } catch {}
 }
 
-// Module-level cache, pre-loaded from sessionStorage so a page refresh
-// restores all candles that were loaded in this browser session.
+function isDataStale(candles: Candle[], tf: timeFrame): boolean {
+  if (tf !== "1d") return false;
+  if (candles.length === 0) return false;
+  return candles[candles.length - 1].ts < Date.now() - STALE_THRESHOLD_MS;
+}
+
 const candleCache = loadCacheFromSession();
 
-/**
- * Read the session-open price for a symbol directly from the module-level
- * cache — no hook, no fetch, no re-render side-effect.
- * Returns null if the candles haven't loaded yet.
- */
 export function getSessionOpen(symbol: string, tf: timeFrame = "1m"): number | null {
   const candles = candleCache.get(`${symbol}:${tf}`);
   if (!candles || candles.length === 0) return null;
@@ -65,59 +59,68 @@ export function getSessionOpen(symbol: string, tf: timeFrame = "1m"): number | n
 
 export function useCandles(symbol: string, tf: timeFrame = "1m", limit = 120, tick?: Tick) {
   const cacheKey = `${symbol}:${tf}`;
-  const [candles, setCandles] = useState<Candle[]>(candleCache.get(cacheKey) ?? []);
-  // Start loading=true only when there's no cached data to show immediately
-  const [loading, setLoading] = useState<boolean>((candleCache.get(cacheKey) ?? []).length === 0);
 
-  // Only allow tick merging once the server has confirmed real data exists for
-  // this symbol+timeframe. Prevents phantom candles being built from live ticks
-  // when there's no historical data in the DB yet (e.g. 1W/1M/1Y for a new symbol).
-  const hasServerData = useRef<boolean>((candleCache.get(cacheKey) ?? []).length > 0);
+  const cachedOnMount = candleCache.get(cacheKey) ?? [];
+  const cacheIsStale = isDataStale(cachedOnMount, tf);
 
-  // Derived-state reset: when the cacheKey changes (symbol or tf switch), immediately
-  // reset candles to the new symbol's cache during render — before any effects fire.
-  // This prevents the tick effect from seeing the previous symbol's candle array.
+  const [candles, setCandles] = useState<Candle[]>(cacheIsStale ? [] : cachedOnMount);
+  const [loading, setLoading] = useState<boolean>(cachedOnMount.length === 0 || cacheIsStale);
+
+  const hasServerData = useRef<boolean>(cachedOnMount.length > 0 && !cacheIsStale);
+
   const [prevCacheKey, setPrevCacheKey] = useState(cacheKey);
   if (prevCacheKey !== cacheKey) {
     setPrevCacheKey(cacheKey);
     const cached = candleCache.get(cacheKey) ?? [];
-    hasServerData.current = cached.length > 0;
-    setLoading(cached.length === 0);
-    setCandles(cached);
+    const stale = isDataStale(cached, tf);
+    hasServerData.current = cached.length > 0 && !stale;
+    setLoading(cached.length === 0 || stale);
+    setCandles(stale ? [] : cached);
   }
 
-  useEffect(() => { //if smbl, tf,limit change, refetch
+  useEffect(() => {
     let cancelled = false;
+    let pollId: ReturnType<typeof setTimeout> | null = null;
     const url = `${API}/candles/${encodeURIComponent(symbol)}?tf=${tf}&limit=${limit}`;
 
-    fetch(url)
-      .then((response) => response.json())
-      .then((arr: Candle[]) => {
-        if (!cancelled) {
+    function doFetch() {
+      fetch(url)
+        .then((r) => r.json())
+        .then((arr: Candle[]) => {
+          if (cancelled) return;
           const data = Array.isArray(arr) ? arr : [];
-          setLoading(false);
+
           if (data.length > 0) {
-            // Only replace state/cache if the server actually returned data.
-            // An empty response (market closed, no rows yet) should not wipe
-            // candles that were already built from live ticks.
-            hasServerData.current = true;
             candleCache.set(cacheKey, data);
-            setCandles(data);
+
+            if (isDataStale(data, tf)) {
+              pollId = setTimeout(doFetch, BACKFILL_POLL_MS);
+            } else {
+              hasServerData.current = true;
+              setLoading(false);
+              setCandles(data);
+            }
+          } else {
+            if (tf === "1d") {
+              pollId = setTimeout(doFetch, BACKFILL_POLL_MS);
+            } else {
+              setLoading(false);
+            }
           }
-        }
-      })
-      .catch(() => {
-        if (!cancelled) setLoading(false);
-        // Network / parse error — don't wipe existing data.
-      });
+        })
+        .catch(() => {
+          if (!cancelled) setLoading(false);
+        });
+    }
+
+    doFetch();
 
     return () => {
       cancelled = true;
+      if (pollId) clearTimeout(pollId);
     };
   }, [symbol, tf, limit, cacheKey]);
 
-  // Keep both the in-memory cache and sessionStorage in sync whenever
-  // candles state changes — covers REST fetch updates AND live tick merges.
   useEffect(() => {
     if (candles.length > 0) {
       candleCache.set(cacheKey, candles);
@@ -127,22 +130,16 @@ export function useCandles(symbol: string, tf: timeFrame = "1m", limit = 120, ti
 
   useEffect(() => {
     if (!tick) return;
-    // Don't build phantom candles from live ticks if the server returned no data.
-    // This prevents the 1W/1M/1Y/Max chart from showing garbage when a symbol
-    // has no historical rows in the DB yet.
     if (!hasServerData.current) return;
-//sec to ms
-const parsed = typeof tick.event_ts === "number"
-  ? tick.event_ts
-  : Date.parse(tick.event_ts);              
 
-const rawTs: number = Number.isFinite(parsed) ? parsed : Date.now();
-// If it looks like seconds, convert to ms
-const timestampInMilliseconds: number = rawTs < 1e12 ? rawTs * 1000 : rawTs;
+    const parsed = typeof tick.event_ts === "number"
+      ? tick.event_ts
+      : Date.parse(tick.event_ts);
+    const rawTs: number = Number.isFinite(parsed) ? parsed : Date.now();
+    const timestampInMilliseconds: number = rawTs < 1e12 ? rawTs * 1000 : rawTs;
+    const bucketStart = floorTs(timestampInMilliseconds, tf);
 
-const bucketStart = floorTs(timestampInMilliseconds, tf);
-
-    setCandles((currentCandlesArray) => { // If no candles, create one
+    setCandles((currentCandlesArray) => {
       if (currentCandlesArray.length === 0) {
         return [
           {
@@ -157,22 +154,24 @@ const bucketStart = floorTs(timestampInMilliseconds, tf);
       }
 
       const lastCandleinBucket = currentCandlesArray[currentCandlesArray.length - 1];
-      if (lastCandleinBucket.ts === bucketStart) {//In same bucket, update candle
+      if (lastCandleinBucket.ts === bucketStart) {
         const updated: Candle = {
           ...lastCandleinBucket,
           high: Math.max(lastCandleinBucket.high, tick.price),
           low: Math.min(lastCandleinBucket.low, tick.price),
           close: tick.price,
           volume:
-            lastCandleinBucket.volume == null && tick.volume == null? null : (lastCandleinBucket.volume ?? 0) + (tick.volume ?? 0 ),
+            lastCandleinBucket.volume == null && tick.volume == null
+              ? null
+              : (lastCandleinBucket.volume ?? 0) + (tick.volume ?? 0),
         };
         return [...currentCandlesArray.slice(0, -1), updated];
       }
 
-      if (bucketStart > lastCandleinBucket.ts) { //Tick in new bucket, new candle
+      if (bucketStart > lastCandleinBucket.ts) {
         const nextCandle: Candle = {
           ts: bucketStart,
-          open: lastCandleinBucket.close, 
+          open: lastCandleinBucket.close,
           high: tick.price,
           low: tick.price,
           close: tick.price,
@@ -182,8 +181,7 @@ const bucketStart = floorTs(timestampInMilliseconds, tf);
         return out.length > limit ? out.slice(out.length - limit) : out;
       }
 
-      
-      return currentCandlesArray; //Ignore older ticks
+      return currentCandlesArray;
     });
   }, [tick, tf, limit]);
 
