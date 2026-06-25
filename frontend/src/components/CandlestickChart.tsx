@@ -101,16 +101,18 @@ function floorToBucket(tsMs: number, tf: ApiTF): number {
 
 // ── OHLCV info bar ────────────────────────────────────────────────────────────
 function OHLCVBar({ info }: { info: OHLCVInfo | null }) {
-  if (!info) return <div style={{ height: 22 }} />;
+  if (!info || info.open == null || info.close == null) return <div style={{ height: 22 }} />;
 
   const up  = info.close >= info.open;
   const chg = ((info.close - info.open) / info.open) * 100;
 
+  const fmt = (v: number | null | undefined) => (v != null && Number.isFinite(v) ? v.toFixed(2) : "—");
+
   const items: { label: string; value: string; color?: string }[] = [
-    { label: "O", value: info.open.toFixed(2)  },
-    { label: "H", value: info.high.toFixed(2),  color: "#22c55e" },
-    { label: "L", value: info.low.toFixed(2),   color: "#ef4444" },
-    { label: "C", value: info.close.toFixed(2), color: up ? "#22c55e" : "#ef4444" },
+    { label: "O", value: fmt(info.open)  },
+    { label: "H", value: fmt(info.high),  color: "#22c55e" },
+    { label: "L", value: fmt(info.low),   color: "#ef4444" },
+    { label: "C", value: fmt(info.close), color: up ? "#22c55e" : "#ef4444" },
     { label: "V", value: fmtVol(info.volume) },
     { label: "",  value: `${up ? "+" : ""}${chg.toFixed(2)}%`, color: up ? "#22c55e" : "#ef4444" },
   ];
