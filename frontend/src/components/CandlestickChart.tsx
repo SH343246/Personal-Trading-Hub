@@ -280,7 +280,7 @@ export function CandlestickChart({ candles, tick, apiTf, height = 320 }: Props) 
         | { open: number; high: number; low: number; close: number }
         | undefined;
 
-      if (!candle) { setHoveredInfo(null); return; }
+      if (!candle || candle.high == null || candle.low == null) { setHoveredInfo(null); return; }
 
       const volData = volRef.current
         ? (params.seriesData.get(volRef.current) as { value: number } | undefined)
@@ -326,8 +326,12 @@ export function CandlestickChart({ candles, tick, apiTf, height = 320 }: Props) 
       return;
     }
 
+    const validCandles = candles.filter(
+      (c) => c.open != null && c.high != null && c.low != null && c.close != null
+    );
+
     seriesRef.current.setData(
-      candles.map((c) => ({
+      validCandles.map((c) => ({
         time:  (c.ts / 1000) as UTCTimestamp,
         open:  c.open,
         high:  c.high,
