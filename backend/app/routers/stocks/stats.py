@@ -35,8 +35,8 @@ def get_stats(symbol: str):
                 return None
 
         mktcap   = safe("market_cap")
-        wk52_hi  = safe("fifty_two_week_high")
-        wk52_lo  = safe("fifty_two_week_low")
+        wk52_hi  = safe("year_high")
+        wk52_lo  = safe("year_low")
         prev_cls = safe("previous_close")
         last_vol = safe("last_volume")
         avg_vol  = safe("three_month_average_volume")
