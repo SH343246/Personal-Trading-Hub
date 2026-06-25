@@ -143,9 +143,10 @@ function OHLCVBar({ info }: { info: OHLCVInfo | null }) {
 // ── Component ─────────────────────────────────────────────────────────────────
 export function CandlestickChart({ candles, tick, apiTf, height = 320 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const chartRef     = useRef<IChartApi | null>(null);
-  const seriesRef    = useRef<ISeriesApi<"Candlestick"> | null>(null);
-  const volRef       = useRef<ISeriesApi<"Histogram"> | null>(null);
+  const chartRef       = useRef<IChartApi | null>(null);
+  const seriesRef      = useRef<ISeriesApi<"Candlestick"> | null>(null);
+  const volRef         = useRef<ISeriesApi<"Histogram"> | null>(null);
+  const prevFirstTsRef = useRef<number | null>(null);
   const maRefs       = useRef<Partial<Record<IndicatorKey, ISeriesApi<"Line">>>>({});
   const bbRefs       = useRef<{ upper: ISeriesApi<"Line"> | null; mid: ISeriesApi<"Line"> | null; lower: ISeriesApi<"Line"> | null }>
                          ({ upper: null, mid: null, lower: null });
@@ -325,12 +326,17 @@ export function CandlestickChart({ candles, tick, apiTf, height = 320 }: Props) 
     if (candles.length === 0) {
       seriesRef.current.setData([]);
       volRef.current.setData([]);
+      prevFirstTsRef.current = null;
       return;
     }
 
     const validCandles = candles.filter(
       (c) => c.open != null && c.high != null && c.low != null && c.close != null
     );
+
+    const firstTs = validCandles.length > 0 ? validCandles[0].ts : null;
+    const isReload = firstTs !== prevFirstTsRef.current;
+    prevFirstTsRef.current = firstTs;
 
     seriesRef.current.setData(
       validCandles.map((c) => ({
@@ -376,7 +382,9 @@ export function CandlestickChart({ candles, tick, apiTf, height = 320 }: Props) 
     mid?.setData(toLineData("mid"));
     lower?.setData(toLineData("lower"));
 
-    chartRef.current.timeScale().fitContent();
+    if (isReload) {
+      chartRef.current.timeScale().fitContent();
+    }
   }, [candles]);
 
   // ── Toggle MA visibility ─────────────────────────────────────────────────
