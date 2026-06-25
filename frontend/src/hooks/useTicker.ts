@@ -48,7 +48,10 @@ export function useTicker(symbol: string) {
       socket.onmessage = (event) => {
         if (cancelled) return;
         try {
-          setLatestTick(JSON.parse(event.data));
+          const parsed = JSON.parse(event.data);
+          if (parsed && typeof parsed.price === "number" && Number.isFinite(parsed.price)) {
+            setLatestTick(parsed);
+          }
         } catch (err) {
           console.error("useTicker parse error:", err);
         }

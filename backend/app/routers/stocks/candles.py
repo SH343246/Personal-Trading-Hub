@@ -26,13 +26,18 @@ _TABLE_MAP = {
 }
 
 def row_to_dictionary(r):
+    if r.open is None or r.high is None or r.low is None or r.close is None:
+        return None
+    o, h, l, c = float(r.open), float(r.high), float(r.low), float(r.close)
+    if not all(map(lambda v: v == v, [o, h, l, c])):
+        return None
     ts_ms = int(r.bucket_start.replace(tzinfo=timezone.utc).timestamp() * 1000)
     return {
         "ts": ts_ms,
-        "open": float(r.open),
-        "high": float(r.high),
-        "low": float(r.low),
-        "close": float(r.close),
+        "open": o,
+        "high": h,
+        "low": l,
+        "close": c,
         "volume": None if r.volume is None else float(r.volume),
     }
 
@@ -71,7 +76,7 @@ def get_candles(
             return []
 
         rows.reverse()
-        return [row_to_dictionary(r) for r in rows]
+        return [d for d in (row_to_dictionary(r) for r in rows) if d is not None]
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

@@ -156,7 +156,10 @@ export function CandlestickChart({ candles, tick, apiTf, height = 320 }: Props) 
 
   // Derive current display info: hovered candle OR last candle as fallback
   const lastCandle  = candles.length > 0 ? candles[candles.length - 1] : null;
-  const displayInfo = hoveredInfo ?? (lastCandle ? {
+  const lastCandleValid = lastCandle != null
+    && lastCandle.open != null && lastCandle.high != null
+    && lastCandle.low  != null && lastCandle.close != null;
+  const displayInfo = hoveredInfo ?? (lastCandleValid && lastCandle ? {
     open:   lastCandle.open,
     high:   lastCandle.high,
     low:    lastCandle.low,
