@@ -312,7 +312,9 @@ export default function Dashboard() {
                       </Table.Tr>
                     </Table.Thead>
                     <Table.Tbody>
-                      {candles.slice(-10).reverse().map((c) => {
+                      {candles
+                        .filter((c) => c.open != null && c.high != null && c.low != null && c.close != null && Number.isFinite(c.open) && Number.isFinite(c.high) && Number.isFinite(c.low) && Number.isFinite(c.close))
+                        .slice(-10).reverse().map((c) => {
                         const chg = ((c.close - c.open) / c.open) * 100;
                         const up = chg >= 0;
                         return (
